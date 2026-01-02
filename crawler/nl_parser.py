@@ -234,9 +234,14 @@ class NaturalLanguageParser:
             confidence = 0.85
 
         else:  # SIMPLE (no operators)
-            ims_query = self._build_or_query(terms)
-            explanation = f"Simple OR query (no operators detected)"
-            confidence = 0.7  # Lower confidence for simple queries
+            # Use smart priority-based parsing
+            ims_query, high_terms, medium_terms = self._build_smart_query(terms, language)
+            if high_terms:
+                explanation = f"Smart query: {len(high_terms)} required + {len(medium_terms)} optional terms"
+                confidence = 0.85
+            else:
+                explanation = f"Simple OR query (no operators detected)"
+                confidence = 0.7
 
         return ParseResult(
             ims_query=ims_query,
@@ -464,6 +469,84 @@ class NaturalLanguageParser:
         else:
             # Mix of AND/OR - default to AND (conservative)
             return self._build_and_query(terms)
+
+    def _classify_term_priority(self, term: str, language: str) -> str:
+        """
+        Classify term priority for smart query building
+
+        Priority Levels:
+        - HIGH: Technical terms, error codes, product names (require ALL)
+        - MEDIUM: General keywords (optional OR)
+        - LOW: Context words, stopwords (remove)
+
+        Args:
+            term: Search term
+            language: Language code
+
+        Returns:
+            Priority level: 'high', 'medium', or 'low'
+        """
+        patterns = self.patterns.get_patterns(language)
+
+        # Check LOW priority first (remove these)
+        if 'low_priority_words' in patterns:
+            if term.lower() in patterns['low_priority_words']:
+                return 'low'
+
+        # Check HIGH priority patterns
+        if 'high_priority_patterns' in patterns:
+            for pattern in patterns['high_priority_patterns']:
+                if re.match(pattern, term):
+                    return 'high'
+
+        # Default: MEDIUM priority
+        return 'medium'
+
+    def _build_smart_query(self, terms: List[str], language: str) -> Tuple[str, List[str], List[str]]:
+        """
+        Build smart query with priority-based AND/OR logic
+
+        Strategy:
+        - High priority terms (error codes, tech terms): AND (+)
+        - Medium priority terms (general keywords): OR (space)
+        - Low priority terms (context words): removed
+
+        Args:
+            terms: Search terms
+            language: Language code
+
+        Returns:
+            Tuple of (ims_query, high_priority_terms, medium_priority_terms)
+
+        Example:
+            Input: ["OpenFrame", "TPETIME", "error", "발생", "원인"]
+            Output: "+TPETIME error", ["TPETIME"], ["error"]
+        """
+        high_priority = []
+        medium_priority = []
+
+        for term in terms:
+            priority = self._classify_term_priority(term, language)
+
+            if priority == 'high':
+                high_priority.append(term)
+            elif priority == 'medium':
+                medium_priority.append(term)
+            # 'low' priority terms are skipped
+
+        # Build query: high priority with +, medium priority without
+        query_parts = []
+
+        # Add high priority terms with AND operator
+        for term in high_priority:
+            query_parts.append(f'+{term}')
+
+        # Add medium priority terms with OR operator (no prefix)
+        query_parts.extend(medium_priority)
+
+        ims_query = ' '.join(query_parts) if query_parts else ' '.join(terms)
+
+        return ims_query, high_priority, medium_priority
 
     def _parse_with_llm(self, query: str, language: str) -> ParseResult:
         """

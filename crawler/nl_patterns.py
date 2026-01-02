@@ -52,6 +52,19 @@ class MultilingualPatterns:
                 'my', 'your', 'his', 'its', 'our', 'their',
                 'all', 'some', 'any', 'many', 'much', 'more', 'most',
                 'in', 'on', 'at', 'to', 'from', 'of', 'by', 'for', 'about',
+            ],
+
+            # High priority terms (require ALL - AND operator)
+            'high_priority_patterns': [
+                r'[A-Z]{2,}[0-9]+',              # Error codes: RC16, ORA-1234
+                r'[A-Z][A-Z0-9]{3,}',            # Uppercase tech terms: TIMEOUT, DYNALLOC
+                r'OpenFrame|Tibero|JEUS|WebtoB|ProFrame|ProOBIX',  # Product names
+            ],
+
+            # Low priority terms (remove from query)
+            'low_priority_words': [
+                'issue', 'problem', 'cause', 'solution', 'reason', 'fix',
+                'handling', 'resolution', 'analysis', 'description'
             ]
         },
 
@@ -84,6 +97,21 @@ class MultilingualPatterns:
                 '가', '이가', '에', '에서', '으로', '로', '의', '도', '만', '까지',
                 '부터', '조차', '마저', '은', '는', '이는', '있는', '없는', '되는',
                 '하는', '한', '할', '해', '줘', '주세요', '요', '입니다', '습니다'
+            ],
+
+            # High priority terms (require ALL - AND operator)
+            # Technical terms, error codes, product names
+            'high_priority_patterns': [
+                r'[A-Z]{2,}[0-9]+',              # Error codes: SVC99, RC16, etc.
+                r'[A-Z][A-Z0-9]{3,}',            # Uppercase tech terms: TPETIME, DYNALLOC
+                r'OpenFrame|Tibero|JEUS|WebtoB|ProFrame|ProOBIX',  # Product names
+            ],
+
+            # Low priority terms (remove from query)
+            # Context words that add noise
+            'low_priority_words': [
+                '발생', '관련', '대해서', '대한', '문제', '이슈', '현상',
+                '원인', '대응', '방안', '해결', '처리', '조치', '내용'
             ]
         },
 
