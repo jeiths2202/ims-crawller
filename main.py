@@ -1132,5 +1132,212 @@ def generate_report(query, product, input_dir, output, language, use_llm, llm_mo
         sys.exit(1)
 
 
+@cli.command()
+@click.option(
+    '--query', '-q',
+    required=True,
+    help='Search query (Korean/Japanese/English supported)'
+)
+@click.option(
+    '--session', '-s',
+    default=None,
+    help='Session folder name or path (auto-detect latest if not specified)'
+)
+@click.option(
+    '--product', '-p',
+    default=None,
+    help='Filter by product when auto-detecting session'
+)
+@click.option(
+    '--top-k', '-k',
+    default=10,
+    type=int,
+    help='Number of results to display (default: 10)'
+)
+@click.option(
+    '--show-scores',
+    is_flag=True,
+    help='Show detailed score breakdown (BM25 + Semantic)'
+)
+@click.option(
+    '--threshold',
+    default=0.0,
+    type=float,
+    help='Minimum similarity score (0.0-1.0, default: 0.0)'
+)
+def search(query, session, product, top_k, show_scores, threshold):
+    """
+    🔍 Search for relevant comments in crawled IMS issues
+
+    Uses hybrid search (BM25 + Semantic) optimized for Korean/Japanese/English.
+
+    Examples:
+
+        # Search in latest session
+        python main.py search -q "TPETIME 에러 원인"
+
+        # Search in specific session
+        python main.py search -q "timeout error" -s OpenFrame_TPETIME_20260103_045204
+
+        # Filter by product and show more results
+        python main.py search -q "batch job failure" -p OpenFrame -k 20
+
+        # Show score breakdown
+        python main.py search -q "connection timeout" --show-scores
+    """
+    import json
+    import time
+
+    console.print(Panel(
+        "[bold cyan]Hybrid Search Engine[/bold cyan]\n"
+        "BM25 (30%) + Semantic (70%) with CJK optimization",
+        title="🔍 IMS Issue Search",
+        border_style="cyan"
+    ))
+
+    # Check if dependencies are installed
+    try:
+        from examples.production_search import ProductionHybridSearch
+    except ImportError as e:
+        console.print(f"[red]✗[/red] Search dependencies not installed")
+        console.print(f"[yellow]Error:[/yellow] {e}")
+        console.print("\n[cyan]Install with:[/cyan]")
+        console.print("  pip install sentence-transformers rank-bm25")
+        sys.exit(1)
+
+    # Initialize search engine
+    console.print("[yellow]⚙[/yellow]  Initializing hybrid search engine...")
+    try:
+        searcher = ProductionHybridSearch()
+        console.print("[green]✓[/green] Search engine initialized")
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to initialize search engine: {e}")
+        sys.exit(1)
+
+    # Determine session folder
+    if session:
+        # Use specified session
+        session_path = Path(session)
+        if not session_path.is_absolute():
+            # Treat as session folder name
+            session_path = Path("data/crawl_sessions") / session
+
+        if not session_path.exists():
+            console.print(f"[red]✗[/red] Session folder not found: {session_path}")
+            sys.exit(1)
+
+        console.print(f"[cyan]📁[/cyan] Session: [bold]{session_path.name}[/bold]")
+
+    else:
+        # Auto-detect latest session
+        console.print("[yellow]🔍[/yellow] Auto-detecting latest crawl session...")
+        if product:
+            console.print(f"[dim]Filtering by product: {product}[/dim]")
+
+        base_dir = Path("data/crawl_sessions")
+        latest_folder = get_latest_crawl_folder(base_dir, product=product)
+
+        if latest_folder is None:
+            console.print(f"[red]✗[/red] No crawl sessions found")
+            if product:
+                console.print(f"[yellow]Tip:[/yellow] Run a crawl first: python main.py crawl -p \"{product}\" -k 'keywords'")
+            else:
+                console.print("[yellow]Tip:[/yellow] Run a crawl first: python main.py crawl -p Product -k 'keywords'")
+            sys.exit(1)
+
+        session_path = latest_folder
+        console.print(f"[green]✓[/green] Using latest session: [cyan]{session_path.name}[/cyan]")
+
+    # Perform search
+    console.print(f"\n[bold]Query:[/bold] [cyan]{query}[/cyan]")
+    console.print(f"[dim]Searching across all issues in session...[/dim]\n")
+
+    start_time = time.time()
+
+    try:
+        results = searcher.search_session_folder(
+            session_folder_path=str(session_path),
+            query=query,
+            overall_top_k=top_k
+        )
+    except Exception as e:
+        console.print(f"[red]✗[/red] Search failed: {e}")
+        logger.exception("Search error")
+        sys.exit(1)
+
+    elapsed = time.time() - start_time
+
+    # Display results
+    if not results:
+        console.print("[yellow]⚠[/yellow]  No results found")
+        console.print(f"[dim]Try different keywords or lower the threshold (current: {threshold})[/dim]")
+        return
+
+    # Filter by threshold
+    filtered_results = [r for r in results if r['score'] >= threshold]
+
+    if not filtered_results:
+        console.print(f"[yellow]⚠[/yellow]  No results above threshold {threshold:.2f}")
+        console.print(f"[dim]Found {len(results)} results below threshold[/dim]")
+        return
+
+    # Create results table
+    table = Table(title=f"🔍 Search Results ({len(filtered_results)} found)", show_lines=True)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Issue ID", style="cyan", width=8)
+    table.add_column("Title", style="bold", width=40)
+    table.add_column("Product", style="green", width=15)
+    table.add_column("Score", style="magenta", width=6)
+
+    for i, result in enumerate(filtered_results, 1):
+        table.add_row(
+            str(i),
+            str(result['issue_id']),
+            result['title'][:37] + "..." if len(result['title']) > 40 else result['title'],
+            result['product'][:12] + "..." if len(result['product']) > 15 else result['product'],
+            f"{result['score']:.3f}"
+        )
+
+    console.print(table)
+
+    # Display detailed results
+    console.print(f"\n[bold]Top {min(5, len(filtered_results))} Results (Detailed):[/bold]\n")
+
+    for i, result in enumerate(filtered_results[:5], 1):
+        console.print(f"[bold cyan][{i}] Issue {result['issue_id']}[/bold cyan]")
+        console.print(f"    [bold]Title:[/bold] {result['title']}")
+        console.print(f"    [bold]Product:[/bold] {result['product']} | [bold]Status:[/bold] {result['status']}")
+        console.print(f"    [bold]Score:[/bold] [magenta]{result['score']:.3f}[/magenta]")
+
+        if show_scores:
+            # Show score breakdown (would need to modify search to return this)
+            console.print(f"    [dim]  (Hybrid: BM25 30% + Semantic 70%)[/dim]")
+
+        console.print(f"    [bold]Comment:[/bold]")
+        comment_content = result['comment']['content']
+        preview = comment_content[:200] + "..." if len(comment_content) > 200 else comment_content
+        console.print(f"    [dim]{preview}[/dim]")
+
+        console.print(f"    [dim]Author: {result['comment'].get('author', 'Unknown')} | "
+                     f"Date: {result['comment'].get('created_date', 'N/A')}[/dim]")
+        console.print()
+
+    # Summary
+    console.print(Panel(
+        f"[green]✓[/green] Search completed\n\n"
+        f"[bold]Results:[/bold] {len(filtered_results)} issues\n"
+        f"[bold]Search time:[/bold] {elapsed:.2f}s\n"
+        f"[bold]Method:[/bold] Hybrid (BM25 + Semantic)\n"
+        f"[bold]Session:[/bold] {session_path.name}",
+        title="✅ Search Summary",
+        border_style="green"
+    ))
+
+    # Show tip for viewing full content
+    if filtered_results:
+        first_result = filtered_results[0]
+        console.print(f"\n[cyan]💡 Tip:[/cyan] View full issue: [bold]{first_result['file_path']}[/bold]")
+
+
 if __name__ == '__main__':
     cli()

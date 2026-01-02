@@ -1,0 +1,40 @@
+# ============================================================
+# Semantic Search Dependencies
+# ============================================================
+
+# Core: Sentence Transformers (다국어 임베딩)
+sentence-transformers>=2.2.2
+
+# Vector Database (선택사항)
+chromadb>=0.4.22                # 벡터 DB (대규모 검색용)
+
+# Hybrid Search (선택사항)
+rank-bm25>=0.2.2                # BM25 알고리즘 (키워드 검색)
+
+# Basic ML/NLP (이미 설치되어 있을 수 있음)
+scikit-learn>=1.3.0             # TF-IDF, 코사인 유사도
+numpy>=1.24.0
+torch>=2.0.0                    # PyTorch (Sentence Transformers 의존성)
+
+# ============================================================
+# Installation Guide
+# ============================================================
+#
+# 1. 기본 시맨틱 검색 (추천):
+#    pip install sentence-transformers
+#
+# 2. 벡터 DB 추가 (대규모 데이터):
+#    pip install chromadb
+#
+# 3. 하이브리드 검색 (최고 정확도):
+#    pip install rank-bm25
+#
+# 4. 전체 설치:
+#    pip install -r requirements_search.txt
+#
+# ============================================================
+
+# Optional: LLM 기반 재순위화 (고급)
+# openai>=1.0.0                 # OpenAI API for reranking
+# anthropic>=0.8.0              # Claude API for reranking
+# cohere>=4.0.0                 # Cohere Rerank API
