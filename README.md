@@ -521,6 +521,112 @@ Total Queries Analyzed: 127
 └──────────────────┴─────────────────────────────────┘
 ```
 
+### 4. Autonomous Report Generator 🤖
+
+Generate comprehensive markdown reports from crawled issue data automatically. Works **100% offline** using templates, or can be enhanced with local LLM for deeper analysis.
+
+**Basic report generation (offline, no internet required):**
+```bash
+# Generate report from existing issue data
+python main.py generate-report -q "SVC99 DYNALLOC" -p "OpenFrame"
+
+# Specify output file
+python main.py generate-report -q "connection timeout" -o custom_report.md
+
+# Generate in English
+python main.py generate-report -q "error" -l en
+```
+
+**LLM-enhanced reports (requires Ollama):**
+```bash
+# Install Ollama (one-time setup)
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull gemma:2b  # or phi3:mini, llama2:7b
+
+# Start Ollama server
+ollama serve
+
+# Generate enhanced report with LLM analysis
+python main.py generate-report -q "SVC99 DYNALLOC" --use-llm
+
+# Use specific LLM model
+python main.py generate-report -q "timeout" --use-llm --llm-model phi3:mini
+```
+
+**Features**:
+- ✅ **100% Offline Mode**: Works without internet using intelligent templates
+- ✅ **LLM Enhancement**: Optional local LLM integration (Ollama)
+- ✅ **Automatic Analysis**:
+  - Executive summary table with priority highlighting
+  - Main issue deep-dive (High priority, active issues first)
+  - Related issues context
+  - Timeline extraction from comments
+  - Keyword analysis
+- ✅ **Multi-language Support**: Korean (ko), Japanese (ja), English (en)
+- ✅ **Smart Issue Prioritization**: Active High-priority issues featured first
+- ✅ **Professional Output**: Markdown format ready for documentation
+
+**Report Structure**:
+```markdown
+# Product 이슈 검색 결과
+
+**검색일**: 2026-01-03
+**검색 쿼리**: `+SVC99 +DYNALLOC`
+**검색 제품**: OpenFrame
+**검색 결과**: 4개 이슈 발견
+
+## 📊 검색 결과 요약
+[Summary table with priority highlighting]
+
+## 🔥 주요 이슈 #350137 (진행중 - HIGH Priority)
+[Detailed analysis of main issue]
+
+### 📌 이슈 개요
+### 🐛 이슈 내용
+### 💡 해결 방안
+
+## 📋 관련 이슈
+[Context from resolved/related issues]
+
+## 🎯 결론
+[Strategic recommendations and next steps]
+```
+
+**How It Works**:
+
+1. **Template Mode (Offline)**:
+   - Loads issue JSON files from `data/issues/`
+   - Analyzes patterns, priorities, and timelines
+   - Generates structured report using intelligent templates
+   - **No internet required**
+
+2. **LLM Mode (Enhanced)**:
+   - All template analysis PLUS:
+   - Root cause analysis from LLM
+   - Impact assessment
+   - Solution recommendations
+   - Timeline predictions
+   - Requires Ollama running locally
+
+**Example Usage Workflow**:
+```bash
+# 1. Crawl issues first
+python main.py crawl -p "OpenFrame" -k "+SVC99 +DYNALLOC" -m 50
+
+# 2. Generate report from crawled data (offline)
+python main.py generate-report -q "SVC99 DYNALLOC" -p "OpenFrame"
+
+# 3. Open the report
+cat SVC99_DYNALLOC_20260103_report.md
+```
+
+**Use Cases**:
+- **Offline Analysis**: Work without internet in secure environments
+- **Daily Reports**: Automated issue summaries for team meetings
+- **Knowledge Base**: Generate documentation from historical issues
+- **Trend Analysis**: Understand issue patterns over time
+- **Customer Reports**: Professional summaries for customer communications
+
 ---
 
 ## 📁 Output Structure

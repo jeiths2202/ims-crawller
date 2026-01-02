@@ -80,15 +80,15 @@ class AuthManager:
                     return True
 
             # Wait for login form to be visible
-            page.wait_for_selector('input[name="userId"]', state='visible', timeout=10000)
+            page.wait_for_selector('input[name="id"]', state='visible', timeout=10000)
 
             # Fill login form (TmaxSoft IMS selectors)
             logger.info(f"Logging in as: {self.username}")
-            page.fill('input[name="userId"]', self.username)
+            page.fill('input[name="id"]', self.username)
             page.fill('input[name="password"]', self.password)
 
-            # Submit form - look for login button
-            page.click('button[type="submit"], input[type="submit"], button.btn-login')
+            # Submit form - look for login button (image type for TmaxSoft IMS)
+            page.click('input[type="image"], button[type="submit"], input[type="submit"], button.btn-login')
 
             # Wait for navigation after login
             page.wait_for_load_state('networkidle')

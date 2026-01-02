@@ -20,6 +20,8 @@ from crawler.llm_client import OllamaClient, LLMConfig
 from crawler.history_manager import HistoryManager
 from crawler.query_builder_ui import InteractiveQueryBuilder
 from crawler.analytics_engine import AnalyticsEngine
+from crawler.report_generator import ReportGenerator
+from crawler.llm_client import get_default_llm_client
 
 # Fix Windows console encoding for Korean/Japanese characters
 if sys.platform == 'win32':
@@ -940,6 +942,172 @@ def analytics(days, export, format):
         report = analytics_engine.generate_report(output_file=Path(export))
         console.print(f"[green]✓[/green] Report exported successfully")
         console.print(f"[dim]Report contains: {len(report)} sections[/dim]")
+
+
+@cli.command()
+@click.option(
+    '--query', '-q',
+    required=True,
+    help='Search query used for crawling (for report context)'
+)
+@click.option(
+    '--product', '-p',
+    default='OpenFrame',
+    help='Product name (default: OpenFrame)'
+)
+@click.option(
+    '--input-dir', '-i',
+    default='data/issues',
+    type=click.Path(exists=True),
+    help='Directory containing issue JSON files (default: data/issues)'
+)
+@click.option(
+    '--output', '-o',
+    type=click.Path(),
+    help='Output markdown file (default: auto-generated based on query)'
+)
+@click.option(
+    '--language', '-l',
+    default='ko',
+    type=click.Choice(['ko', 'ja', 'en']),
+    help='Report language (default: ko)'
+)
+@click.option(
+    '--use-llm/--no-llm',
+    default=False,
+    help='Use local LLM for enhanced analysis (requires Ollama, default: no)'
+)
+@click.option(
+    '--llm-model',
+    default='gemma:2b',
+    help='LLM model to use (default: gemma:2b)'
+)
+def generate_report(query, product, input_dir, output, language, use_llm, llm_model):
+    """
+    📝 Generate comprehensive markdown report from crawled issue data
+
+    Analyzes crawled JSON files and generates structured markdown reports
+    with executive summary, technical analysis, and recommendations.
+
+    Works offline using templates, or can be enhanced with local LLM.
+
+    Examples:
+
+        # Basic report (template-only, offline)
+        python main.py generate-report -q "SVC99 DYNALLOC" -p "OpenFrame"
+
+        # LLM-enhanced report (requires Ollama)
+        python main.py generate-report -q "connection timeout" --use-llm
+
+        # Custom output and language
+        python main.py generate-report -q "error" -o custom_report.md -l en
+    """
+    import json
+    import time
+    from datetime import datetime
+
+    console.print(Panel(
+        "[bold cyan]IMS Report Generator[/bold cyan]\n"
+        "Autonomous report generation from crawled issue data",
+        title="📝 Report Generator",
+        border_style="cyan"
+    ))
+
+    # Initialize LLM client if requested
+    llm_client = None
+    if use_llm:
+        console.print("[yellow]⚙[/yellow]  Initializing LLM client...")
+        try:
+            if llm_model != 'gemma:2b':
+                from crawler.llm_client import OllamaClient, LLMConfig
+                config = LLMConfig(model=llm_model)
+                llm_client = OllamaClient(config=config)
+            else:
+                llm_client = get_default_llm_client()
+
+            if llm_client and llm_client.available:
+                console.print(f"[green]✓[/green] LLM client initialized: {llm_client.config.model}")
+            else:
+                console.print("[yellow]⚠[/yellow]  LLM not available, using template-only mode")
+                console.print("[dim]To use LLM: ollama serve && ollama pull gemma:2b[/dim]")
+                llm_client = None
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow]  LLM initialization failed: {e}")
+            console.print("[yellow]⚙[/yellow]  Falling back to template-only mode")
+            llm_client = None
+    else:
+        console.print("[cyan]ℹ[/cyan]  Using template-based report generation (offline mode)")
+
+    # Initialize report generator
+    generator = ReportGenerator(llm_client=llm_client)
+
+    # Load issues from directory
+    console.print(f"[yellow]📂[/yellow] Loading issues from: [cyan]{input_dir}[/cyan]")
+    input_path = Path(input_dir)
+
+    issues = generator.load_issues(input_path)
+
+    if not issues:
+        console.print(f"[red]✗[/red] No issue files found in {input_dir}")
+        console.print("[yellow]Tip:[/yellow] Run a crawl first: python main.py crawl -p Product -k 'keywords'")
+        sys.exit(1)
+
+    console.print(f"[green]✓[/green] Loaded {len(issues)} issue(s)")
+
+    # Generate output filename if not specified
+    if not output:
+        # Create filename from query
+        safe_query = "".join(c if c.isalnum() else '_' for c in query)
+        timestamp = datetime.now().strftime("%Y%m%d")
+        output = f"{safe_query}_{timestamp}_report.md"
+
+    output_path = Path(output)
+
+    # Generate report
+    console.print(f"[yellow]⚙[/yellow]  Generating report...")
+    console.print(f"[dim]Query: {query}[/dim]")
+    console.print(f"[dim]Product: {product}[/dim]")
+    console.print(f"[dim]Language: {language}[/dim]")
+    console.print(f"[dim]Mode: {'LLM-enhanced' if llm_client else 'Template-only'}[/dim]")
+
+    start_time = time.time()
+
+    try:
+        report_content = generator.generate_report(
+            query=query,
+            product=product,
+            issues=issues,
+            output_file=output_path,
+            language=language
+        )
+
+        elapsed = time.time() - start_time
+
+        # Success
+        console.print()
+        console.print(Panel(
+            f"[green]✓[/green] Report generated successfully!\n\n"
+            f"[bold]Output:[/bold] [cyan]{output_path}[/cyan]\n"
+            f"[bold]Size:[/bold] {len(report_content)} characters\n"
+            f"[bold]Issues analyzed:[/bold] {len(issues)}\n"
+            f"[bold]Generation time:[/bold] {elapsed:.2f}s",
+            title="✅ Success",
+            border_style="green"
+        ))
+
+        # Show preview
+        console.print("\n[bold]Report Preview:[/bold]")
+        preview_lines = report_content.split('\n')[:20]
+        console.print("[dim]" + "\n".join(preview_lines) + "[/dim]")
+        if len(report_content.split('\n')) > 20:
+            console.print("[dim]...[/dim]")
+
+        console.print(f"\n[cyan]→[/cyan] View full report: [bold]{output_path}[/bold]")
+
+    except Exception as e:
+        console.print(f"\n[red]✗[/red] Report generation failed: {e}")
+        logger.exception("Report generation error")
+        sys.exit(1)
 
 
 if __name__ == '__main__':
