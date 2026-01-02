@@ -11,10 +11,14 @@ This crawler enables systematic extraction of issues, comments, attachments, and
 - ✅ **Web Scraping**: Automated browser-based crawling using Playwright
 - 🔐 **Authentication**: Session management with automatic re-login on timeout
 - 🔍 **Advanced Search**: Support for IMS-specific search syntax (OR, AND, exact phrase)
+- 🗣️ **Natural Language Parsing**: Conversational queries in English, Korean, Japanese (Phase 2)
+- 🤖 **LLM Fallback**: Optional Ollama integration for complex query parsing (Phase 3)
 - 📦 **Attachment Processing**: Downloads and extracts text from PDFs, Word docs, images
 - 📊 **Structured Output**: JSON format with complete issue metadata
 - 🎯 **User-Driven**: Crawl on-demand based on product and keyword filters
-- 🚀 **CLI Interface**: Rich terminal UI with progress tracking
+- 🚀 **CLI Interface**: Rich terminal UI with progress tracking and batch mode (Phase 4)
+
+**📖 See [USAGE_GUIDE.md](USAGE_GUIDE.md) for comprehensive examples and real-world scenarios**
 
 ## 🏗️ Architecture
 
@@ -126,11 +130,129 @@ python main.py crawl --product "Tibero" --keywords "connection +error" --max-res
 python main.py test-query "timeout crash +error"
 ```
 
+## 🗣️ Natural Language Search (NEW!)
+
+You can now use natural language instead of IMS syntax! The crawler automatically detects and converts natural language queries.
+
+### Quick Examples
+
+**English Natural Language**:
+```bash
+# AND query: find issues with both error AND crash
+python main.py crawl -p "Tibero" -k "find error and crash" -m 50
+# Automatically converted to: +error +crash
+
+# OR query: find issues with connection OR timeout
+python main.py crawl -p "OpenFrame" -k "show connection or timeout" -m 50
+# Automatically converted to: connection timeout
+
+# Complex query
+python main.py crawl -p "JEUS" -k "find database error and crash or timeout" -m 50
+# Automatically converted to: +database +error +crash timeout
+```
+
+### How It Works
+
+1. **Automatic Detection**: The crawler detects if your query is natural language or IMS syntax
+2. **Intelligent Parsing**: Converts natural language to IMS syntax using rule-based parsing
+3. **User Confirmation**: Shows you the parsed query and asks for confirmation
+4. **High Confidence**: 90%+ accuracy for simple queries
+
+### Batch Mode (Skip Confirmation)
+
+Use `--no-confirm` flag to skip the confirmation prompt for automation:
+
+```bash
+python main.py crawl -p "Tibero" -k "find error and crash" --no-confirm -m 50
+```
+
+### Performance Mode (Rules-Only)
+
+Use `--no-llm` flag to disable LLM fallback for faster processing:
+
+```bash
+python main.py crawl -p "JEUS" -k "show connection errors" --no-llm -m 50
+```
+
+**Combined flags for automated batch processing:**
+```bash
+python main.py crawl -p "OpenFrame" -k "find memory leak" --no-confirm --no-llm -m 200
+```
+
+**Korean Natural Language**:
+```bash
+# AND query: 에러와 크래시가 모두 포함된 이슈 찾기
+python main.py crawl -p "Tibero" -k "에러와 크래시 찾아줘" -m 50
+# Automatically converted to: +에러 +크래시
+
+# OR query: 연결 또는 타임아웃 이슈 찾기
+python main.py crawl -p "OpenFrame" -k "연결 또는 타임아웃 보여줘" -m 50
+# Automatically converted to: 연결 타임아웃
+
+# Complex query
+python main.py crawl -p "JEUS" -k "데이터베이스 에러 그리고 크래시 또는 타임아웃" -m 50
+# Automatically converted to: +데이터베이스 +에러 +크래시 +타임아웃
+```
+
+**Japanese Natural Language**:
+```bash
+# AND query: エラーとクラッシュの両方を含む問題を検索
+python main.py crawl -p "Tibero" -k "エラーとクラッシュを検索" -m 50
+# Automatically converted to: +エラー +クラッシュ
+
+# OR query: 接続またはタイムアウトの問題を検索
+python main.py crawl -p "OpenFrame" -k "接続またはタイムアウト" -m 50
+# Automatically converted to: 接続 タイムアウト
+
+# Complex query
+python main.py crawl -p "JEUS" -k "データベース エラー および クラッシュ または タイムアウト" -m 50
+# Automatically converted to: +データベース +エラー +クラッシュ +タイムアウト
+```
+
+### Supported Languages
+
+- ✅ **English** (Phase 2 - Available Now)
+- ✅ **Korean** (Phase 2 - Available Now)
+- ✅ **Japanese** (Phase 2 - Available Now)
+
+### LLM Fallback (Phase 3 - Optional)
+
+For complex queries that rule-based parsing can't handle confidently, you can enable optional LLM fallback using Ollama:
+
+```bash
+# Enable LLM fallback in .env
+USE_LLM=true
+LLM_MODEL=gemma:2b
+```
+
+**When does LLM activate?**
+- Natural language query detected
+- Rule-based confidence < 0.7
+- Ollama server is running
+
+**Setup:**
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Download model (1.4GB, lightweight & fast)
+ollama pull gemma:2b
+
+# Start server
+ollama serve
+```
+
+**See [OLLAMA_SETUP.md](OLLAMA_SETUP.md) for complete installation guide**
+
+**Note:** LLM is completely optional. The crawler works perfectly fine with rules-only parsing.
+
+---
+
 ## 📖 IMS Search Syntax
 
 > 📚 **See [SEARCH_GUIDE.md](SEARCH_GUIDE.md) for complete search syntax guide with examples**
 
-The crawler supports the IMS-native search operators. Keywords are entered in the CLI and passed directly to the IMS search engine.
+The crawler also supports direct IMS-native search syntax. You can use IMS syntax directly if you prefer manual control.
 
 ### 1. OR Search (Space Delimiter)
 Multiple keywords separated by spaces are searched with OR logic.

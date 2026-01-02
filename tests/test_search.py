@@ -40,10 +40,10 @@ class TestSearchQueryBuilder:
         assert '"connection timeout"' in result
 
     def test_build_query_with_product(self):
-        """Test query building with product filter"""
+        """Test query building with product filter - product handled by UI, not in query"""
         result = SearchQueryBuilder.build_query('error', product='Tibero')
-        assert '+Tibero' in result
-        assert 'error' in result
+        # Product is now handled by UI dropdown, not in query string
+        assert result == 'error'
 
     def test_build_query_without_product(self):
         """Test query building without product filter"""

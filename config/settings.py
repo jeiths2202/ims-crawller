@@ -44,3 +44,11 @@ BROWSER_TIMEOUT = 30000  # milliseconds
 
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+# LLM Settings (Phase 3 - Optional)
+USE_LLM = os.getenv("USE_LLM", "false").lower() == "true"
+LLM_MODEL = os.getenv("LLM_MODEL", "gemma:2b")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434")
+LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "10"))
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "50"))
