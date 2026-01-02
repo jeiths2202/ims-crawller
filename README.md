@@ -128,37 +128,125 @@ python main.py test-query "timeout crash +error"
 
 ## 📖 IMS Search Syntax
 
-The crawler supports the following IMS-specific search operators:
+> 📚 **See [SEARCH_GUIDE.md](SEARCH_GUIDE.md) for complete search syntax guide with examples**
+
+The crawler supports the IMS-native search operators. Keywords are entered in the CLI and passed directly to the IMS search engine.
 
 ### 1. OR Search (Space Delimiter)
+Multiple keywords separated by spaces are searched with OR logic.
+
 ```bash
 python main.py crawl -p "Tibero" -k "Tmax Tibero"
-# Finds: Tmax OR Tibero
+# Finds: Issues containing Tmax OR Tibero
 ```
+
+**Rule**: Use a space as a delimiter between keywords.
 
 ### 2. AND Search (+ Operator)
+To require a specific word in results, use the plus operator (+) before the word with **no space** between them.
+
 ```bash
-python main.py crawl -p "Tibero" -k "IMS +error"
-# Finds: IMS AND error
+python main.py crawl -p "OpenFrame" -k "IMS +error"
+# Finds: Issues containing IMS AND must contain error
+
+python main.py crawl -p "Tibero" -k "+connection +timeout"
+# Finds: Issues that must contain both connection AND timeout
 ```
 
-### 3. Exact Phrase Search (Quotation Marks)
+**Rule**: `+keyword` requires that word to appear. No space between + and the word.
+
+### 3. Exact Phrase Search (Single Quotation Marks)
+To search for an exact word or phrase, enclose it in single quotation marks (' ').
+
 ```bash
-python main.py crawl -p "Tibero" -k '"connection timeout"'
-# Finds: Exact phrase "connection timeout"
+python main.py crawl -p "JEUS" -k "'error log'"
+# Finds: Exact phrase "error log"
+
+python main.py crawl -p "Tibero" -k "'out of memory'"
+# Finds: Exact phrase "out of memory"
 ```
 
-### 4. Complex Queries (Combination)
+**Rule**: Use single quotes (' ') around exact phrases.
+
+### 4. Combined Search (+ and ' ')
+The plus operator (+) and single quotation marks (' ') can be used together.
+
 ```bash
-python main.py crawl -p "Tibero" -k 'timeout crash +error +"system failure"'
-# Finds: (timeout OR crash) AND error AND "system failure"
+python main.py crawl -p "OpenFrame" -k "Tmax 'error log' +Tibero"
+# Finds: (Tmax OR 'error log') AND must contain Tibero
+
+python main.py crawl -p "Tibero" -k "database +error +'connection timeout'"
+# Finds: database AND error AND exact phrase "connection timeout"
+
+python main.py crawl -p "JEUS" -k "Tmax '+error log'"
+# Finds: Tmax AND exact phrase "error log"
 ```
+
+**Rule**: Combine operators for complex queries.
 
 ### 5. Issue Number Search
+Search by specific issue numbers.
+
 ```bash
-python main.py crawl -p "Tibero" -k "+IMS-12345"
-# Finds: Specific issue number
+python main.py crawl -p "OpenFrame" -k "348115"
+# Finds: Issue number 348115
+
+python main.py crawl -p "OpenFrame" -k "348115 347878 346525"
+# Finds: Issue 348115 OR 347878 OR 346525
+
+python main.py crawl -p "Tibero" -k "+348115"
+# Finds: Required issue number 348115
 ```
+
+**Rule**: Issue numbers can be searched directly or with + for required match.
+
+### 6. Keyword Highlighting
+Found keywords are automatically highlighted in the IMS search results to make them easy to identify.
+
+### 7. Complete Examples
+
+```bash
+# Simple OR search
+python main.py crawl -p "Tibero" -k "connection timeout crash" -m 50
+
+# Multiple required terms (AND)
+python main.py crawl -p "OpenFrame" -k "+error +timeout +crash" -m 30
+
+# Exact phrase only
+python main.py crawl -p "JEUS" -k "'out of memory'" -m 20
+
+# Complex combination
+python main.py crawl -p "Tibero" -k "database error +crash +'connection timeout'" -m 50
+# Finds: (database OR error) AND crash AND exact phrase "connection timeout"
+
+# Multiple issue numbers
+python main.py crawl -p "OpenFrame" -k "348115 347878" -m 10
+
+# Crawl with related issues (new feature)
+python main.py crawl -p "OpenFrame" -k "5213" --crawl-related --max-depth 2 -m 10
+# Finds issue 5213 and automatically crawls all related issues up to depth 2
+```
+
+### 8. Related Issues Crawling (NEW)
+
+Automatically crawl related issues referenced in the `related_issues` field:
+
+```bash
+# Enable related issue crawling
+python main.py crawl -p "OpenFrame" -k "error" --crawl-related
+
+# Set maximum depth (default: 2)
+python main.py crawl -p "OpenFrame" -k "error" --crawl-related --max-depth 3
+
+# Example: Crawl issue and all its related issues
+python main.py crawl -p "OpenFrame" -k "348115" --crawl-related --max-depth 1
+```
+
+**Features**:
+- Automatically prevents infinite loops (tracks crawled issues)
+- Parallel processing: 30% of search results are processed concurrently
+- Each related issue is saved as a separate JSON file
+- Configurable depth to control how deep to follow related issues
 
 ## 📁 Output Structure
 

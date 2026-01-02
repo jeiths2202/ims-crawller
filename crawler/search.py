@@ -37,23 +37,16 @@ class SearchQueryBuilder:
 
         Args:
             keywords: User-provided search keywords (already formatted with IMS syntax)
-            product: Optional product name to filter by
+            product: Optional product name (used for UI product selection, not in query)
 
         Returns:
             str: Formatted search query
         """
-        query_parts = []
+        # Note: Product selection is now handled via the product dropdown UI
+        # The product parameter is used for UI selection only, not query building
 
-        # Add product filter if specified
-        if product:
-            # Product should be an AND condition
-            query_parts.append(f"+{product}")
-
-        # Add user keywords
-        if keywords:
-            query_parts.append(keywords.strip())
-
-        query = " ".join(query_parts)
+        # Just return the keywords as-is
+        query = keywords.strip() if keywords else ""
         logger.debug(f"Built search query: {query}")
         return query
 

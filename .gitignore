@@ -38,6 +38,9 @@ env/
 .env
 .env.local
 
+# Cookies (sensitive authentication data)
+cookies.json
+
 # Output Data
 data/
 *.json

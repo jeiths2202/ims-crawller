@@ -48,7 +48,15 @@ def cli():
 @click.option(
     '--keywords', '-k',
     required=True,
-    help='Search keywords using IMS syntax (e.g., "connection +error")'
+    help='''Search keywords using IMS syntax:
+
+    \b
+    OR search: "Tmax Tibero" (space-separated)
+    AND search: "IMS +error" (+ before required word)
+    Exact phrase: "'error log'" (single quotes)
+    Combined: "Tmax 'error log' +Tibero"
+    Issue number: "348115" or "+348115"
+    '''
 )
 @click.option(
     '--max-results', '-m',
@@ -67,23 +75,73 @@ def cli():
     default=True,
     help='Run browser in headless mode (default: headless)'
 )
-def crawl(product, keywords, max_results, output_dir, headless):
+@click.option(
+    '--crawl-related/--no-crawl-related',
+    default=False,
+    help='Crawl related issues recursively (default: no)'
+)
+@click.option(
+    '--max-depth',
+    default=2,
+    type=int,
+    help='Maximum depth for related issue crawling (default: 2)'
+)
+def crawl(product, keywords, max_results, output_dir, headless, crawl_related, max_depth):
     """
     Crawl IMS issues based on search criteria
 
+    \b
+    IMS Search Syntax Guide:
+
+    1) OR search (space-separated keywords):
+       "Tmax Tibero" → finds Tmax OR Tibero
+
+    2) AND search (+ before required word, no space):
+       "IMS +error" → finds IMS AND error
+       "+connection +timeout" → finds both connection AND timeout
+
+    3) Exact phrase (enclosed in single quotes):
+       "'error log'" → exact phrase "error log"
+       "'out of memory'" → exact phrase "out of memory"
+
+    4) Combined search:
+       "Tmax 'error log' +Tibero" → Tmax OR ('error log' AND Tibero)
+       "database +error +'connection timeout'" → database AND error AND exact phrase
+
+    5) Issue number search:
+       "348115" → search by issue number
+       "+348115" → required issue number
+
+    \b
     Examples:
 
     \b
-    # Crawl Tibero connection errors
-    $ python main.py crawl -p "Tibero" -k "connection +error" -m 50
+    # OR search: Find connection OR timeout issues
+    $ python main.py crawl -p "Tibero" -k "connection timeout" -m 50
 
     \b
-    # Crawl with exact phrase search
-    $ python main.py crawl -p "JEUS" -k '"out of memory"' -m 100
+    # AND search: Find issues with both error AND crash
+    $ python main.py crawl -p "OpenFrame" -k "+error +crash" -m 50
 
     \b
-    # Crawl with complex query (OR + AND + exact phrase)
-    $ python main.py crawl -p "Tibero" -k 'timeout crash +error +"system failure"'
+    # Exact phrase search
+    $ python main.py crawl -p "JEUS" -k "'out of memory'" -m 100
+
+    \b
+    # Combined search: IMS AND (error OR crash) AND exact phrase
+    $ python main.py crawl -p "Tibero" -k "error crash +IMS +'connection timeout'" -m 50
+
+    \b
+    # Search by issue number
+    $ python main.py crawl -p "OpenFrame" -k "348115" -m 1
+
+    \b
+    # Multiple issue numbers (OR search)
+    $ python main.py crawl -p "OpenFrame" -k "348115 347878 346525" -m 10
+
+    \b
+    # Crawl with related issues (parallel processing)
+    $ python main.py crawl -p "OpenFrame" -k "5213" --crawl-related --max-depth 2 -m 10
     """
 
     # Validate configuration
@@ -107,6 +165,9 @@ def crawl(product, keywords, max_results, output_dir, headless):
     config_table.add_row("Max Results", str(max_results))
     config_table.add_row("Output Dir", output_dir)
     config_table.add_row("Headless", "Yes" if headless else "No")
+    config_table.add_row("Crawl Related Issues", "Yes" if crawl_related else "No")
+    if crawl_related:
+        config_table.add_row("Max Depth", str(max_depth))
 
     console.print(config_table)
     console.print()
@@ -125,7 +186,8 @@ def crawl(product, keywords, max_results, output_dir, headless):
             password=settings.IMS_PASSWORD,
             output_dir=output_path,
             attachments_dir=settings.ATTACHMENTS_DIR,
-            headless=headless
+            headless=headless,
+            cookie_file=settings.COOKIE_FILE
         ) as scraper:
 
             # Execute crawl
@@ -147,16 +209,22 @@ def crawl(product, keywords, max_results, output_dir, headless):
                     issues = scraper.crawl(
                         product=product,
                         keywords=keywords,
-                        max_results=max_results
+                        max_results=max_results,
+                        crawl_related=crawl_related,
+                        max_depth=max_depth
                     )
 
                     progress.update(task, completed=len(issues))
 
                     # Display results
                     console.print()
+                    result_msg = f"[green]✅ Successfully crawled {len(issues)} issues[/green]"
+                    if crawl_related:
+                        result_msg += f"\n[yellow]📎 Including related issues (max depth: {max_depth})[/yellow]"
+                    result_msg += f"\n[cyan]📁 Output directory: {output_dir}[/cyan]"
+
                     console.print(Panel.fit(
-                        f"[green]✅ Successfully crawled {len(issues)} issues[/green]\n"
-                        f"[cyan]📁 Output directory: {output_dir}[/cyan]",
+                        result_msg,
                         title="✨ Crawl Complete",
                         border_style="green"
                     ))

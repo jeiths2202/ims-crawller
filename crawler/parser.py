@@ -1,8 +1,9 @@
 """
 IMS Page Parser
-Extracts structured data from IMS issue pages
+Extracts structured data from TmaxSoft IMS issue pages
 """
 import logging
+import re
 from typing import Dict, Any, List, Optional
 from playwright.sync_api import Page
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class IMSParser:
-    """Parses IMS issue pages and extracts structured data"""
+    """Parses TmaxSoft IMS issue pages and extracts structured data"""
 
     def parse_issue_page(self, page: Page) -> Dict[str, Any]:
         """
@@ -34,6 +35,8 @@ class IMSParser:
                 'updated_date': self._extract_updated_date(page),
                 'reporter': self._extract_reporter(page),
                 'assignee': self._extract_assignee(page),
+                'product_notice': self._extract_product_notice(page),
+                'related_issues': self._extract_related_issues(page),
                 'comments': self._extract_comments(page),
                 'history': self._extract_history(page),
                 'attachments': self._extract_attachments(page),
@@ -48,127 +51,228 @@ class IMSParser:
             raise
 
     def _extract_issue_id(self, page: Page) -> str:
-        """Extract issue ID"""
-        # TODO: Update selector based on actual IMS page structure
+        """Extract issue ID from span.issueNumber"""
         try:
-            # Example selectors - customize based on actual IMS
-            element = page.query_selector('.issue-id, #issue-id, [data-issue-id]')
+            # TmaxSoft IMS uses: <span class="issueNumber">348115</span>
+            element = page.query_selector('span.issueNumber')
             if element:
                 return element.text_content().strip()
+
             # Fallback: extract from URL
             url = page.url
-            # Assuming URL pattern like /issue/IMS-12345
-            parts = url.split('/')
-            return parts[-1] if parts else 'unknown'
+            # URL pattern: ...issueView.do?issueId=350334
+            if 'issueId=' in url:
+                match = re.search(r'issueId=(\d+)', url)
+                if match:
+                    return match.group(1)
+
+            return 'unknown'
         except Exception as e:
             logger.warning(f"Failed to extract issue ID: {e}")
             return 'unknown'
 
     def _extract_title(self, page: Page) -> str:
-        """Extract issue title"""
+        """Extract issue title/subject from table row"""
         try:
-            # TODO: Update selector
-            element = page.query_selector('.issue-title, h1.title, .summary')
-            return element.text_content().strip() if element else ''
+            # Find the table row with "Subject" header in the main content area
+            # Pattern: <td class="tableHeaderTitle">Subject</td><td>...</td>
+            # The issue title is in a table with class="table-bordered dataTable fullWidth"
+
+            # Strategy: Find the specific table that contains issue metadata
+            # This table has the tableHeaderTitle structure and is NOT in navigation
+            metadata_tables = page.query_selector_all('table.table-bordered.dataTable.fullWidth')
+
+            for table in metadata_tables:
+                rows = table.query_selector_all('tr')
+                for row in rows:
+                    header = row.query_selector('td.tableHeaderTitle')
+                    if header and 'Subject' == header.text_content().strip():
+                        # Get all td elements, the second one is the data cell
+                        cells = row.query_selector_all('td')
+                        if len(cells) >= 2:
+                            title = cells[1].text_content().strip()
+                            # Clean up whitespace
+                            title = re.sub(r'\s+', ' ', title)
+
+                            # Skip if empty or only whitespace
+                            if not title:
+                                continue
+
+                            return title
+
+            return ''
         except Exception as e:
             logger.warning(f"Failed to extract title: {e}")
             return ''
 
     def _extract_description(self, page: Page) -> str:
-        """Extract issue description"""
+        """Extract issue description from IssueDescriptionDiv"""
         try:
-            # TODO: Update selector
-            element = page.query_selector('.issue-description, .description, .content')
-            return element.text_content().strip() if element else ''
+            # TmaxSoft IMS: <div id="IssueDescriptionDiv"> ... <td class="data">
+            desc_div = page.query_selector('#IssueDescriptionDiv')
+            if desc_div:
+                # Get the content cell
+                data_cell = desc_div.query_selector('td.data')
+                if data_cell:
+                    # Get text content
+                    text_content = data_cell.text_content().strip()
+
+                    # Remove "Issue Description" header if present
+                    # Pattern: "Issue Description\n\n\n   actual content..."
+                    if text_content.startswith('Issue Description'):
+                        # Find where the actual content starts (after the header)
+                        lines = text_content.split('\n')
+                        # Skip "Issue Description" and empty lines
+                        actual_content_lines = []
+                        skip_header = True
+                        for line in lines:
+                            stripped = line.strip()
+                            if skip_header:
+                                if stripped == 'Issue Description' or stripped == '':
+                                    continue
+                                else:
+                                    skip_header = False
+                            if not skip_header:
+                                actual_content_lines.append(line)
+                        text_content = '\n'.join(actual_content_lines).strip()
+
+                    return text_content
+            return ''
         except Exception as e:
             logger.warning(f"Failed to extract description: {e}")
             return ''
 
+    def _extract_field_by_header(self, page: Page, header_text: str) -> str:
+        """
+        Generic method to extract field value by header text
+        Pattern: <td class="title tableHeaderTitle">Header</td><td class="data">Value</td>
+        """
+        try:
+            rows = page.query_selector_all('tr')
+            for row in rows:
+                header = row.query_selector('td.title.tableHeaderTitle')
+                if header and header_text in header.text_content():
+                    data_cell = row.query_selector('td.data')
+                    if data_cell:
+                        return data_cell.text_content().strip()
+            return ''
+        except Exception as e:
+            logger.warning(f"Failed to extract field '{header_text}': {e}")
+            return ''
+
     def _extract_product(self, page: Page) -> str:
         """Extract product name"""
-        try:
-            # TODO: Update selector
-            element = page.query_selector('.product, .project, [data-product]')
-            return element.text_content().strip() if element else ''
-        except Exception as e:
-            logger.warning(f"Failed to extract product: {e}")
-            return ''
+        return self._extract_field_by_header(page, 'Product')
 
     def _extract_status(self, page: Page) -> str:
         """Extract issue status"""
         try:
-            # TODO: Update selector
-            element = page.query_selector('.status, .issue-status, [data-status]')
-            return element.text_content().strip() if element else ''
+            # Status might have colored span inside
+            rows = page.query_selector_all('tr')
+            for row in rows:
+                header = row.query_selector('td.title.tableHeaderTitle')
+                if header and 'Status' in header.text_content():
+                    data_cell = row.query_selector('td.data')
+                    if data_cell:
+                        # Try to get span content first (colored status)
+                        span = data_cell.query_selector('span')
+                        if span:
+                            return span.text_content().strip()
+                        return data_cell.text_content().strip()
+            return ''
         except Exception as e:
             logger.warning(f"Failed to extract status: {e}")
             return ''
 
     def _extract_priority(self, page: Page) -> str:
         """Extract issue priority"""
-        try:
-            # TODO: Update selector
-            element = page.query_selector('.priority, [data-priority]')
-            return element.text_content().strip() if element else ''
-        except Exception as e:
-            logger.warning(f"Failed to extract priority: {e}")
-            return ''
+        return self._extract_field_by_header(page, 'Priority')
 
     def _extract_created_date(self, page: Page) -> str:
-        """Extract creation date"""
-        try:
-            # TODO: Update selector
-            element = page.query_selector('.created-date, .date-created, [data-created]')
-            return element.text_content().strip() if element else ''
-        except Exception as e:
-            logger.warning(f"Failed to extract created date: {e}")
-            return ''
+        """Extract creation date (Registered date)"""
+        return self._extract_field_by_header(page, 'Registered date')
 
     def _extract_updated_date(self, page: Page) -> str:
-        """Extract last updated date"""
-        try:
-            # TODO: Update selector
-            element = page.query_selector('.updated-date, .date-updated, [data-updated]')
-            return element.text_content().strip() if element else ''
-        except Exception as e:
-            logger.warning(f"Failed to extract updated date: {e}")
-            return ''
+        """Extract last updated date (Date of final order or Closed Date)"""
+        # Try "Date of final order" first
+        date = self._extract_field_by_header(page, 'Date of final order')
+        if not date:
+            # Try "Closed Date" if issue is closed
+            date = self._extract_field_by_header(page, 'Closed Date')
+        return date
 
     def _extract_reporter(self, page: Page) -> str:
-        """Extract reporter name"""
-        try:
-            # TODO: Update selector
-            element = page.query_selector('.reporter, .author, [data-reporter]')
-            return element.text_content().strip() if element else ''
-        except Exception as e:
-            logger.warning(f"Failed to extract reporter: {e}")
-            return ''
+        """Extract reporter name and email"""
+        return self._extract_field_by_header(page, 'Reporter')
 
     def _extract_assignee(self, page: Page) -> str:
-        """Extract assignee name"""
-        try:
-            # TODO: Update selector
-            element = page.query_selector('.assignee, [data-assignee]')
-            return element.text_content().strip() if element else ''
-        except Exception as e:
-            logger.warning(f"Failed to extract assignee: {e}")
-            return ''
+        """Extract Handler (assignee) name and email"""
+        return self._extract_field_by_header(page, 'Handler')
 
     def _extract_comments(self, page: Page) -> List[Dict[str, Any]]:
-        """Extract comments/discussion thread"""
+        """Extract comments/actions from CommentsDiv"""
         comments = []
         try:
-            # TODO: Update selector based on actual comment structure
-            comment_elements = page.query_selector_all('.comment, .discussion-item')
+            # TmaxSoft IMS: <div id="CommentsDiv"> contains <div class="fieldset"> for each comment
+            comments_div = page.query_selector('#CommentsDiv')
+            if not comments_div:
+                return comments
 
-            for element in comment_elements:
+            fieldsets = comments_div.query_selector_all('div.fieldset')
+
+            for fieldset in fieldsets:
                 try:
+                    # Extract action info from legend
+                    legend = fieldset.query_selector('div.legend')
+                    if not legend:
+                        continue
+
+                    # Action No and metadata from span
+                    # Pattern: " Action No.   2258642   |   Registrant : 민사혁   |   Registered date ..."
+                    action_span = legend.query_selector('span.link2[id^="action_"]')
+                    if not action_span:
+                        continue
+
+                    action_text = action_span.text_content()
+
+                    # Parse action metadata
+                    action_no = ''
+                    author = ''
+                    date = ''
+
+                    # Extract Action No
+                    action_match = re.search(r'Action No\.\s+(\d+)', action_text)
+                    if action_match:
+                        action_no = action_match.group(1)
+
+                    # Extract Registrant
+                    registrant_match = re.search(r'Registrant\s*:\s*([^|]+)', action_text)
+                    if registrant_match:
+                        author = registrant_match.group(1).strip()
+
+                    # Extract Registered date
+                    date_match = re.search(r'Registered date\s*:\s*([^\|]+)', action_text)
+                    if date_match:
+                        date = date_match.group(1).strip()
+
+                    # Extract comment content
+                    # Pattern: <div id="comment_2258642"> ... <div class="commDescTR data">
+                    action_id = action_span.get_attribute('id').replace('action_', '')
+                    comment_div = fieldset.query_selector(f'div#comment_{action_id}')
+                    content = ''
+                    if comment_div:
+                        desc_div = comment_div.query_selector('div.commDescTR')
+                        if desc_div:
+                            content = desc_div.text_content().strip()
+
                     comment = {
-                        'author': self._get_text(element, '.comment-author, .author'),
-                        'date': self._get_text(element, '.comment-date, .date'),
-                        'content': self._get_text(element, '.comment-content, .content')
+                        'action_no': action_no,
+                        'author': author,
+                        'date': date,
+                        'content': content
                     }
                     comments.append(comment)
+
                 except Exception as e:
                     logger.warning(f"Failed to parse comment: {e}")
                     continue
@@ -179,21 +283,27 @@ class IMSParser:
         return comments
 
     def _extract_history(self, page: Page) -> List[Dict[str, Any]]:
-        """Extract change history"""
+        """Extract change history from HistoriesDiv"""
         history = []
         try:
-            # TODO: Update selector based on actual history structure
-            history_elements = page.query_selector_all('.history-item, .activity-item')
+            # TmaxSoft IMS: <div id="HistoriesDiv"> contains table with rows
+            history_div = page.query_selector('#HistoriesDiv')
+            if not history_div:
+                return history
 
-            for element in history_elements:
+            # Get all data rows (skip header)
+            rows = history_div.query_selector_all('tr.data')
+
+            for row in rows:
                 try:
-                    history_entry = {
-                        'user': self._get_text(element, '.user, .author'),
-                        'date': self._get_text(element, '.date, .timestamp'),
-                        'action': self._get_text(element, '.action, .change'),
-                        'details': self._get_text(element, '.details, .description')
-                    }
-                    history.append(history_entry)
+                    cells = row.query_selector_all('td')
+                    if len(cells) >= 3:
+                        history_entry = {
+                            'date': cells[0].text_content().strip(),
+                            'user': cells[1].text_content().strip(),
+                            'details': cells[2].text_content().strip()
+                        }
+                        history.append(history_entry)
                 except Exception as e:
                     logger.warning(f"Failed to parse history entry: {e}")
                     continue
@@ -204,39 +314,199 @@ class IMSParser:
         return history
 
     def _extract_attachments(self, page: Page) -> List[Dict[str, Any]]:
-        """Extract attachment information"""
+        """Extract attachment information from AttachesDiv and PatchAttachesDiv"""
         attachments = []
         try:
-            # TODO: Update selector based on actual attachment structure
-            attachment_elements = page.query_selector_all('.attachment, .file-item')
+            # Regular attachments
+            attachments.extend(self._extract_attachments_from_div(page, '#AttachesDiv', 'regular'))
 
-            for element in attachment_elements:
-                try:
-                    # Extract download link
-                    link = element.query_selector('a')
-                    if link:
-                        attachment = {
-                            'name': self._get_text(element, '.filename, .name') or link.text_content().strip(),
-                            'url': link.get_attribute('href'),
-                            'size': self._get_text(element, '.filesize, .size')
-                        }
-                        attachments.append(attachment)
-                except Exception as e:
-                    logger.warning(f"Failed to parse attachment: {e}")
-                    continue
+            # Patch files
+            attachments.extend(self._extract_attachments_from_div(page, '#PatchAttachesDiv', 'patch'))
 
         except Exception as e:
             logger.warning(f"Failed to extract attachments: {e}")
 
         return attachments
 
+    def _extract_attachments_from_div(self, page: Page, div_selector: str, file_type: str) -> List[Dict[str, Any]]:
+        """Helper to extract attachments from a specific div"""
+        attachments = []
+        try:
+            div = page.query_selector(div_selector)
+            if not div:
+                return attachments
+
+            # Find all download links
+            # Pattern: <a href="/" onclick="downloadFileNew('261102', 'ISSUE')">
+            links = div.query_selector_all('a[onclick^="downloadFileNew"]')
+
+            for link in links:
+                try:
+                    # Extract file ID from onclick
+                    onclick = link.get_attribute('onclick') or ''
+                    file_id_match = re.search(r"downloadFileNew\('(\d+)'", onclick)
+                    file_id = file_id_match.group(1) if file_id_match else ''
+
+                    # Get filename from span inside link
+                    filename_span = link.query_selector('span')
+                    filename = filename_span.text_content().strip() if filename_span else ''
+
+                    # Get file size - usually in a span after the link
+                    size = ''
+                    # Try to find size in next sibling or parent's text
+                    parent = link.evaluate_handle('node => node.parentElement')
+                    if parent:
+                        parent_text = parent.as_element().text_content() if parent.as_element() else ''
+                        size_match = re.search(r'\(([^)]+)\)', parent_text)
+                        if size_match:
+                            size = size_match.group(1)
+
+                    if filename:
+                        attachment = {
+                            'name': filename,
+                            'file_id': file_id,
+                            'size': size,
+                            'type': file_type
+                        }
+                        attachments.append(attachment)
+
+                except Exception as e:
+                    logger.warning(f"Failed to parse attachment: {e}")
+                    continue
+
+        except Exception as e:
+            logger.warning(f"Failed to extract attachments from {div_selector}: {e}")
+
+        return attachments
+
+    def _extract_product_notice(self, page: Page) -> str:
+        """Extract product notice from NoticeDiv"""
+        try:
+            # TmaxSoft IMS: <div id="NoticeDiv"> contains product notice content
+            notice_div = page.query_selector('#NoticeDiv')
+            if not notice_div:
+                return ''
+
+            # Get all text content from the notice div
+            # Skip the Subject header row, get actual notice content
+            tables = notice_div.query_selector_all('table')
+            if tables:
+                # Usually the notice content is in the first table
+                for table in tables:
+                    rows = table.query_selector_all('tr')
+                    for row in rows:
+                        # Skip the header row with "Subject"
+                        header = row.query_selector('td.tableHeaderTitle')
+                        if header and 'Subject' in header.text_content():
+                            continue
+
+                        # Get the content
+                        cells = row.query_selector_all('td')
+                        if cells:
+                            # Get text from all cells
+                            content_parts = []
+                            for cell in cells:
+                                text = cell.text_content().strip()
+                                if text and text != 'Subject':
+                                    content_parts.append(text)
+                            if content_parts:
+                                return '\n'.join(content_parts)
+
+            # Fallback: get all text content
+            return notice_div.text_content().strip()
+
+        except Exception as e:
+            logger.warning(f"Failed to extract product notice: {e}")
+            return ''
+
+    def _extract_related_issues(self, page: Page) -> List[Dict[str, Any]]:
+        """Extract related issues from RelatedIssueTable"""
+        related_issues = []
+        try:
+            # TmaxSoft IMS: <table id="RelatedIssueTable">
+            table = page.query_selector('#RelatedIssueTable')
+            if not table:
+                return related_issues
+
+            # Get data rows (skip header)
+            tbody = table.query_selector('tbody')
+            if tbody:
+                rows = tbody.query_selector_all('tr')
+            else:
+                rows = table.query_selector_all('tr')
+
+            # Skip header row
+            for row in rows:
+                # Check if this is a header row
+                if row.query_selector('th'):
+                    continue
+
+                try:
+                    cells = row.query_selector_all('td')
+                    if len(cells) >= 8:  # Expected: No, Issue No, Status, Product, Module, Owner, Handler, Customer, Project, Subject
+                        # Parse related issue data
+                        issue_no_cell = cells[1]  # Issue No column
+                        issue_link = issue_no_cell.query_selector('a')
+                        if issue_link:
+                            issue_no = issue_link.text_content().strip()
+                        else:
+                            issue_no = issue_no_cell.text_content().strip()
+
+                        related_issue = {
+                            'issue_no': issue_no,
+                            'status': cells[2].text_content().strip() if len(cells) > 2 else '',
+                            'product': cells[3].text_content().strip() if len(cells) > 3 else '',
+                            'module': cells[4].text_content().strip() if len(cells) > 4 else '',
+                            'owner': cells[5].text_content().strip() if len(cells) > 5 else '',
+                            'handler': cells[6].text_content().strip() if len(cells) > 6 else '',
+                            'customer': cells[7].text_content().strip() if len(cells) > 7 else '',
+                        }
+
+                        # Add project and subject if available
+                        if len(cells) > 8:
+                            related_issue['project'] = cells[8].text_content().strip()
+                        if len(cells) > 9:
+                            related_issue['subject'] = cells[9].text_content().strip()
+
+                        if issue_no:  # Only add if we have an issue number
+                            related_issues.append(related_issue)
+
+                except Exception as e:
+                    logger.warning(f"Failed to parse related issue row: {e}")
+                    continue
+
+        except Exception as e:
+            logger.warning(f"Failed to extract related issues: {e}")
+
+        return related_issues
+
     def _extract_metadata(self, page: Page) -> Dict[str, Any]:
-        """Extract additional metadata"""
+        """Extract additional metadata fields"""
         metadata = {}
         try:
-            # TODO: Extract any additional fields specific to your IMS
-            # Examples: labels, tags, custom fields, etc.
-            pass
+            # Extract additional IMS-specific fields
+            fields_to_extract = [
+                'Category',
+                'Version',
+                'Build No',
+                'Patch No',
+                'Module',
+                'Error Code',
+                'Severity',
+                'Project',
+                'Customer',
+                'Owner',
+                'Patch Version',
+                'Bug Number'
+            ]
+
+            for field in fields_to_extract:
+                value = self._extract_field_by_header(page, field)
+                if value:
+                    # Convert field name to snake_case key
+                    key = field.lower().replace(' ', '_')
+                    metadata[key] = value
+
         except Exception as e:
             logger.warning(f"Failed to extract metadata: {e}")
 

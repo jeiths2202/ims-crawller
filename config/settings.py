@@ -16,6 +16,10 @@ IMS_BASE_URL = os.getenv("IMS_BASE_URL", "")
 IMS_USERNAME = os.getenv("IMS_USERNAME", "")
 IMS_PASSWORD = os.getenv("IMS_PASSWORD", "")
 
+# Cookie-based Authentication (optional - bypasses login form)
+COOKIE_FILE = os.getenv("COOKIE_FILE", "")
+USE_COOKIES = bool(COOKIE_FILE and Path(COOKIE_FILE).exists())
+
 # Crawler Settings
 MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "5"))
 DEFAULT_MAX_RESULTS = int(os.getenv("DEFAULT_MAX_RESULTS", "100"))
