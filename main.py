@@ -22,6 +22,7 @@ from crawler.query_builder_ui import InteractiveQueryBuilder
 from crawler.analytics_engine import AnalyticsEngine
 from crawler.report_generator import ReportGenerator
 from crawler.llm_client import get_default_llm_client
+from crawler.utils import create_crawl_folder_name, get_latest_crawl_folder
 
 # Fix Windows console encoding for Korean/Japanese characters
 if sys.platform == 'win32':
@@ -303,6 +304,16 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
             )
             sys.exit(1)
 
+    # Create session folder with timestamp
+    from datetime import datetime
+    session_folder_name = create_crawl_folder_name(product, final_query, datetime.now())
+    session_folder = Path("data/crawl_sessions") / session_folder_name
+    session_folder.mkdir(parents=True, exist_ok=True)
+
+    # Create attachments subfolder within session
+    attachments_folder = session_folder / "attachments"
+    attachments_folder.mkdir(parents=True, exist_ok=True)
+
     # Display crawl configuration
     config_table = Table(title="🔧 Crawl Configuration", show_header=False)
     config_table.add_column("Setting", style="cyan")
@@ -311,7 +322,7 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
     config_table.add_row("Product", product)
     config_table.add_row("Search Query", final_query)
     config_table.add_row("Max Results", str(max_results))
-    config_table.add_row("Output Dir", output_dir)
+    config_table.add_row("Session Folder", str(session_folder))
     config_table.add_row("Headless", "Yes" if headless else "No")
     config_table.add_row("Crawl Related Issues", "Yes" if crawl_related else "No")
     if crawl_related:
@@ -319,10 +330,6 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
 
     console.print(config_table)
     console.print()
-
-    # Create output directory
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
 
     try:
         # Initialize scraper
@@ -336,8 +343,8 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
             base_url=settings.IMS_BASE_URL,
             username=settings.IMS_USERNAME,
             password=settings.IMS_PASSWORD,
-            output_dir=output_path,
-            attachments_dir=settings.ATTACHMENTS_DIR,
+            output_dir=session_folder,
+            attachments_dir=attachments_folder,
             headless=headless,
             cookie_file=settings.COOKIE_FILE
         ) as scraper:
@@ -373,7 +380,7 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
                     result_msg = f"[green]✅ Successfully crawled {len(issues)} issues[/green]"
                     if crawl_related:
                         result_msg += f"\n[yellow]📎 Including related issues (max depth: {max_depth})[/yellow]"
-                    result_msg += f"\n[cyan]📁 Output directory: {output_dir}[/cyan]"
+                    result_msg += f"\n[cyan]📁 Session folder: {session_folder}[/cyan]"
 
                     console.print(Panel.fit(
                         result_msg,
@@ -957,9 +964,9 @@ def analytics(days, export, format):
 )
 @click.option(
     '--input-dir', '-i',
-    default='data/issues',
+    default=None,
     type=click.Path(exists=True),
-    help='Directory containing issue JSON files (default: data/issues)'
+    help='Directory containing issue JSON files (default: latest crawl session for product)'
 )
 @click.option(
     '--output', '-o',
@@ -1040,6 +1047,21 @@ def generate_report(query, product, input_dir, output, language, use_llm, llm_mo
 
     # Initialize report generator
     generator = ReportGenerator(llm_client=llm_client)
+
+    # Auto-detect latest session folder if input_dir not specified
+    if input_dir is None:
+        console.print(f"[yellow]🔍[/yellow] Auto-detecting latest crawl session for product: [cyan]{product}[/cyan]")
+
+        base_dir = Path("data/crawl_sessions")
+        latest_folder = get_latest_crawl_folder(base_dir, product=product)
+
+        if latest_folder is None:
+            console.print(f"[red]✗[/red] No crawl sessions found for product '{product}'")
+            console.print("[yellow]Tip:[/yellow] Run a crawl first: python main.py crawl -p \"{product}\" -k 'keywords'")
+            sys.exit(1)
+
+        input_dir = str(latest_folder)
+        console.print(f"[green]✓[/green] Using latest session: [cyan]{latest_folder.name}[/cyan]")
 
     # Load issues from directory
     console.print(f"[yellow]📂[/yellow] Loading issues from: [cyan]{input_dir}[/cyan]")
