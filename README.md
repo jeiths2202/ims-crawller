@@ -370,6 +370,159 @@ python main.py crawl -p "OpenFrame" -k "348115" --crawl-related --max-depth 1
 - Each related issue is saved as a separate JSON file
 - Configurable depth to control how deep to follow related issues
 
+---
+
+## 🎯 Advanced Features (NEW!)
+
+### 1. Query History and Favorites
+
+Track all your queries automatically and save frequently used searches as favorites.
+
+**View query history:**
+```bash
+# Show last 20 queries
+python main.py history
+
+# Filter by product
+python main.py history --product "Tibero"
+
+# Filter by language
+python main.py history --language "ko"
+
+# Show more results
+python main.py history --limit 50
+```
+
+**Manage favorites:**
+```bash
+# List all favorites
+python main.py favorites --list
+
+# Add last query to favorites
+python main.py favorites --add -1
+
+# Add specific query from history (by index)
+python main.py favorites --add 5
+
+# Remove favorite
+python main.py favorites --remove 0
+```
+
+**View statistics:**
+```bash
+# Show query statistics
+python main.py stats
+
+# Export statistics to JSON
+python main.py stats --export stats_report.json
+```
+
+**Features**:
+- ✅ Automatic history tracking for every query
+- ✅ Favorite query management
+- ✅ Filter by product, language, or parsing method
+- ✅ Query statistics and success rates
+- ✅ Export history to JSON/CSV
+
+### 2. Interactive Query Builder
+
+Build queries step-by-step with a guided terminal UI.
+
+**Launch interactive builder:**
+```bash
+python main.py build
+```
+
+**Features**:
+- ✅ Step-by-step guided query construction
+- ✅ Load queries from favorites or history
+- ✅ Real-time query preview as you type
+- ✅ Product selection menu
+- ✅ Query type selection (AND/OR/PHRASE/MIXED/DIRECT)
+- ✅ Automatic query execution after confirmation
+
+**Query Types Available**:
+- **AND Query**: All terms required (`+term1 +term2`)
+- **OR Query**: Any term matches (`term1 term2`)
+- **Exact Phrase**: Exact match only (`'exact phrase'`)
+- **Mixed Query**: Combination of operators
+- **Direct IMS Syntax**: Raw IMS syntax (advanced users)
+
+### 3. Advanced Analytics
+
+Comprehensive analytics on query patterns, performance, and parsing accuracy.
+
+**View analytics dashboard:**
+```bash
+# Full analytics dashboard
+python main.py analytics
+
+# Summary view (less detailed)
+python main.py analytics --format summary
+
+# Analyze trends for specific period
+python main.py analytics --days 30
+
+# Export comprehensive report
+python main.py analytics --export report.json
+```
+
+**Available Metrics**:
+
+1. **Performance Metrics**
+   - Execution time statistics (avg, min, max, median)
+   - Confidence score analysis
+   - Success rate and result quality
+
+2. **Usage Patterns**
+   - Peak usage hours and days
+   - Most popular products
+   - Language distribution
+   - Activity rate over time
+
+3. **Parsing Accuracy**
+   - Performance by parsing method (rules/llm/direct)
+   - Confidence scores by method
+   - Success rate comparison
+
+4. **Query Complexity Analysis**
+   - Simple vs medium vs complex query breakdown
+   - Execution time by complexity
+   - Complexity distribution
+
+5. **Trend Analysis**
+   - Query volume trends (7-day, 30-day)
+   - Daily breakdown with metrics
+   - Growth rate calculation
+
+**Example Output**:
+```
+📊 Advanced Analytics Dashboard
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Queries Analyzed: 127
+
+⚡ Performance Metrics
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Metric              ┃ Value                    ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Avg Execution Time  │ 2.34s                    │
+│ Avg Confidence      │ 87.5%                    │
+│ Success Rate        │ 94.1%                    │
+└─────────────────────┴──────────────────────────┘
+
+📈 Usage Patterns
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Pattern          ┃ Details                         ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Peak Hour        │ 14:00-14:59 (23 queries)       │
+│ Peak Day         │ Wednesday (31 queries)          │
+│ Top Products     │ Tibero (45), OpenFrame (38)    │
+└──────────────────┴─────────────────────────────────┘
+```
+
+---
+
 ## 📁 Output Structure
 
 ### JSON Output Format

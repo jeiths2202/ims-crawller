@@ -17,6 +17,9 @@ from config import settings
 from crawler import IMSScraper
 from crawler.nl_parser import NaturalLanguageParser, is_ims_syntax, ParsingError
 from crawler.llm_client import OllamaClient, LLMConfig
+from crawler.history_manager import HistoryManager
+from crawler.query_builder_ui import InteractiveQueryBuilder
+from crawler.analytics_engine import AnalyticsEngine
 
 # Fix Windows console encoding for Korean/Japanese characters
 if sys.platform == 'win32':
@@ -200,6 +203,10 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
 
     # Natural Language Query Parsing
     final_query = keywords  # Default: use keywords as-is
+    parse_method = "direct"  # Track parsing method for history
+    parse_language = "en"  # Default language
+    parse_confidence = 1.0  # Direct IMS syntax = 100% confidence
+    start_time = None  # Track execution time
 
     if is_ims_syntax(keywords):
         # IMS syntax detected - pass through
@@ -235,6 +242,11 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
 
             # Parse query
             result = nl_parser.parse(keywords)
+
+            # Update tracking variables
+            parse_method = result.method
+            parse_language = result.language
+            parse_confidence = result.confidence
 
             # Show parsing result
             parse_table = Table(title="🔍 Query Parsing Result", show_header=False)
@@ -314,6 +326,10 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
         # Initialize scraper
         console.print("[yellow]🚀 Initializing crawler...[/yellow]")
 
+        # Track execution time
+        import time
+        start_time = time.time()
+
         with IMSScraper(
             base_url=settings.IMS_BASE_URL,
             username=settings.IMS_USERNAME,
@@ -382,6 +398,24 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
 
                         if len(issues) > 10:
                             console.print(f"\n[dim]... and {len(issues) - 10} more issues[/dim]")
+
+                    # Add to history
+                    execution_time = time.time() - start_time
+                    try:
+                        history_manager = HistoryManager()
+                        history_manager.add_query(
+                            query=keywords,
+                            product=product,
+                            parsed_query=final_query,
+                            language=parse_language,
+                            method=parse_method,
+                            confidence=parse_confidence,
+                            results_count=len(issues),
+                            execution_time=execution_time
+                        )
+                        logger.debug(f"Query added to history: {keywords[:50]}...")
+                    except Exception as e:
+                        logger.warning(f"Failed to add query to history: {e}")
 
                 except Exception as e:
                     progress.stop()
@@ -461,6 +495,451 @@ def test_query(query):
     console.print("• +keyword = AND search (e.g., 'error +critical')")
     console.print('• "exact phrase" = Exact match (e.g., \'"connection timeout"\')')
     console.print("• Combine all (e.g., 'Tmax +error \"system failure\"')")
+
+
+@cli.command()
+@click.option('--limit', '-n', default=20, type=int, help='Number of records to show')
+@click.option('--product', '-p', help='Filter by product')
+@click.option('--language', '-l', help='Filter by language (en/ko/ja)')
+@click.option('--method', '-m', help='Filter by parsing method (rules/llm/direct)')
+def history(limit, product, language, method):
+    """
+    View query history
+
+    Shows recent queries with parsing details and statistics.
+
+    Examples:
+
+    \b
+    # Show last 20 queries
+    $ python main.py history
+
+    \b
+    # Show last 10 queries for Tibero
+    $ python main.py history --limit 10 --product "Tibero"
+
+    \b
+    # Show Korean queries only
+    $ python main.py history --language ko
+    """
+    manager = HistoryManager()
+    records = manager.get_history(limit=limit, product=product, language=language, method=method)
+
+    if not records:
+        console.print("[yellow]No query history found[/yellow]")
+        return
+
+    table = Table(title=f"📜 Query History (Last {len(records)} queries)")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Time", style="cyan", width=16)
+    table.add_column("Product", style="green", width=12)
+    table.add_column("Query", style="white", width=40)
+    table.add_column("Lang", style="yellow", width=4)
+    table.add_column("Method", style="magenta", width=6)
+    table.add_column("Conf", style="blue", width=5)
+    table.add_column("Results", style="green", width=7)
+
+    for idx, record in enumerate(records, 1):
+        timestamp = record.timestamp.split('T')[1][:8] if 'T' in record.timestamp else record.timestamp[:8]
+        confidence_str = f"{record.confidence:.0%}"
+
+        table.add_row(
+            str(idx),
+            timestamp,
+            record.product[:12],
+            record.query[:40],
+            record.language.upper(),
+            record.method[:6],
+            confidence_str,
+            str(record.results_count)
+        )
+
+    console.print(table)
+    console.print(f"\n[dim]Total: {len(records)} queries[/dim]")
+
+
+@cli.command()
+@click.option('--add', '-a', type=int, help='Add query from history (index)')
+@click.option('--remove', '-r', type=int, help='Remove favorite (index)')
+@click.option('--list', '-l', 'list_fav', is_flag=True, help='List all favorites')
+def favorites(add, remove, list_fav):
+    """
+    Manage favorite queries
+
+    Save frequently used queries for quick access.
+
+    Examples:
+
+    \b
+    # List all favorites
+    $ python main.py favorites --list
+
+    \b
+    # Add last query to favorites
+    $ python main.py favorites --add -1
+
+    \b
+    # Remove favorite by index
+    $ python main.py favorites --remove 0
+    """
+    manager = HistoryManager()
+
+    if add is not None:
+        try:
+            manager.add_to_favorites(query_index=add)
+            console.print(f"[green]✓[/green] Added query #{add} to favorites")
+        except Exception as e:
+            console.print(f"[red]✗[/red] Failed to add: {e}")
+        return
+
+    if remove is not None:
+        try:
+            manager.remove_from_favorites(index=remove)
+            console.print(f"[green]✓[/green] Removed favorite #{remove}")
+        except Exception as e:
+            console.print(f"[red]✗[/red] Failed to remove: {e}")
+        return
+
+    # Default: list favorites
+    favs = manager.get_favorites()
+
+    if not favs:
+        console.print("[yellow]No favorite queries yet[/yellow]")
+        console.print("\n[dim]Tip: Add favorites with: python main.py favorites --add -1[/dim]")
+        return
+
+    table = Table(title="⭐ Favorite Queries")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Product", style="green", width=12)
+    table.add_column("Query", style="white", width=40)
+    table.add_column("Parsed", style="cyan", width=40)
+    table.add_column("Lang", style="yellow", width=4)
+
+    for idx, fav in enumerate(favs):
+        table.add_row(
+            str(idx),
+            fav.product[:12],
+            fav.query[:40],
+            fav.parsed_query[:40],
+            fav.language.upper()
+        )
+
+    console.print(table)
+    console.print(f"\n[dim]Total: {len(favs)} favorites[/dim]")
+
+
+@cli.command()
+@click.option('--export', '-e', type=click.Path(), help='Export statistics to file')
+def stats(export):
+    """
+    View query statistics and analytics
+
+    Shows aggregate statistics about query usage patterns.
+
+    Examples:
+
+    \b
+    # View statistics
+    $ python main.py stats
+
+    \b
+    # Export to JSON
+    $ python main.py stats --export stats.json
+    """
+    manager = HistoryManager()
+    statistics = manager.get_statistics()
+
+    if statistics['total_queries'] == 0:
+        console.print("[yellow]No queries in history yet[/yellow]")
+        return
+
+    # Overview panel
+    overview = f"""[cyan]Total Queries:[/cyan] {statistics['total_queries']}
+[cyan]Favorites:[/cyan] {statistics['favorites_count']}
+[cyan]Avg Confidence:[/cyan] {statistics['avg_confidence']:.1%}
+[cyan]Avg Results:[/cyan] {statistics['avg_results']:.1f}
+[cyan]Avg Execution Time:[/cyan] {statistics['avg_execution_time']:.2f}s"""
+
+    console.print(Panel(overview, title="📊 Query Statistics", border_style="cyan"))
+
+    # By Language table
+    if statistics['by_language']:
+        lang_table = Table(title="Queries by Language")
+        lang_table.add_column("Language", style="yellow")
+        lang_table.add_column("Count", style="green")
+        lang_table.add_column("Percentage", style="cyan")
+
+        for lang, count in sorted(statistics['by_language'].items(), key=lambda x: x[1], reverse=True):
+            pct = (count / statistics['total_queries']) * 100
+            lang_table.add_row(lang.upper(), str(count), f"{pct:.1f}%")
+
+        console.print(lang_table)
+
+    # By Product table
+    if statistics['by_product']:
+        product_table = Table(title="Queries by Product")
+        product_table.add_column("Product", style="green")
+        product_table.add_column("Count", style="green")
+        product_table.add_column("Percentage", style="cyan")
+
+        for product, count in sorted(statistics['by_product'].items(), key=lambda x: x[1], reverse=True):
+            pct = (count / statistics['total_queries']) * 100
+            product_table.add_row(product, str(count), f"{pct:.1f}%")
+
+        console.print(product_table)
+
+    # By Method table
+    if statistics['by_method']:
+        method_table = Table(title="Queries by Parsing Method")
+        method_table.add_column("Method", style="magenta")
+        method_table.add_column("Count", style="green")
+        method_table.add_column("Percentage", style="cyan")
+
+        for method, count in sorted(statistics['by_method'].items(), key=lambda x: x[1], reverse=True):
+            pct = (count / statistics['total_queries']) * 100
+            method_table.add_row(method, str(count), f"{pct:.1f}%")
+
+        console.print(method_table)
+
+    # Export if requested
+    if export:
+        import json
+        with open(export, 'w', encoding='utf-8') as f:
+            json.dump(statistics, f, indent=2, ensure_ascii=False)
+        console.print(f"\n[green]✓[/green] Statistics exported to {export}")
+
+
+@cli.command()
+def build():
+    """
+    Interactive query builder
+
+    Build queries step-by-step with guided prompts.
+    Load from favorites or history for quick access.
+
+    Examples:
+
+    \b
+    # Launch interactive builder
+    $ python main.py build
+
+    Features:
+    - Step-by-step query construction
+    - Load from favorites or history
+    - Real-time query preview
+    - Automatic query execution
+    """
+    builder = InteractiveQueryBuilder()
+    result = builder.run()
+
+    if result.get('from_favorite'):
+        console.print("\n[green]✓[/green] Loaded query from favorites")
+
+    # Auto-execute the built query
+    console.print("\n[bold cyan]Executing query...[/bold cyan]")
+
+    # Call crawl programmatically
+    from click.testing import CliRunner
+    runner = CliRunner()
+
+    args = [
+        'crawl',
+        '-p', result['product'],
+        '-k', result['query'],
+        '-m', str(result['max_results']),
+        '--no-confirm'  # Skip confirmation since we already previewed
+    ]
+
+    runner.invoke(cli, args)
+
+
+@cli.command()
+@click.option('--days', '-d', type=int, help='Days for trend analysis (7 or 30)')
+@click.option('--export', '-e', type=click.Path(), help='Export report to JSON file')
+@click.option('--format', '-f', type=click.Choice(['full', 'summary']), default='full',
+              help='Report format (full or summary)')
+def analytics(days, export, format):
+    """
+    View advanced analytics and parsing performance metrics
+
+    Examples:
+        python main.py analytics
+        python main.py analytics --days 7
+        python main.py analytics --export report.json
+        python main.py analytics --format summary
+    """
+    console.print(Panel.fit(
+        "[bold cyan]📊 Advanced Analytics Dashboard[/bold cyan]\n"
+        "Query patterns, performance metrics, and trends",
+        border_style="cyan"
+    ))
+
+    # Initialize analytics engine
+    history_manager = HistoryManager()
+    analytics_engine = AnalyticsEngine(history_manager)
+
+    if not history_manager.history:
+        console.print("[yellow]No query history available yet.[/yellow]")
+        console.print("[dim]Run some queries first to generate analytics.[/dim]")
+        return
+
+    total_queries = len(history_manager.history)
+    console.print(f"\n[bold]Total Queries Analyzed:[/bold] [cyan]{total_queries}[/cyan]\n")
+
+    # 1. Performance Metrics
+    if format == 'full':
+        console.print("[bold green]⚡ Performance Metrics[/bold green]")
+        perf = analytics_engine.get_performance_metrics()
+
+        perf_table = Table(show_header=True, header_style="bold cyan")
+        perf_table.add_column("Metric", style="white", width=20)
+        perf_table.add_column("Value", style="green", width=30)
+
+        perf_table.add_row("Avg Execution Time", f"{perf['execution_time']['avg']:.2f}s")
+        perf_table.add_row("Min/Max Time", f"{perf['execution_time']['min']:.2f}s / {perf['execution_time']['max']:.2f}s")
+        perf_table.add_row("Median Time", f"{perf['execution_time']['median']:.2f}s")
+        perf_table.add_row("Avg Confidence", f"{perf['confidence']['avg']:.1%}")
+        perf_table.add_row("High Confidence", f"{perf['confidence']['high_count']} ({perf['confidence']['high_percentage']:.1f}%)")
+        perf_table.add_row("Low Confidence", f"{perf['confidence']['low_count']}")
+        perf_table.add_row("Avg Results", f"{perf['results']['avg']:.1f}")
+        perf_table.add_row("Success Rate", f"{perf['results']['success_rate']:.1f}%")
+
+        console.print(perf_table)
+        console.print()
+
+    # 2. Usage Patterns
+    console.print("[bold green]📈 Usage Patterns[/bold green]")
+    patterns = analytics_engine.get_usage_patterns()
+
+    if patterns:
+        pattern_table = Table(show_header=True, header_style="bold cyan")
+        pattern_table.add_column("Pattern", style="white", width=20)
+        pattern_table.add_column("Details", style="yellow", width=40)
+
+        if 'peak_hour' in patterns and patterns['peak_hour']['count'] > 0:
+            pattern_table.add_row(
+                "Peak Hour",
+                f"{patterns['peak_hour']['time_range']} ({patterns['peak_hour']['count']} queries)"
+            )
+
+        if 'peak_day' in patterns and patterns['peak_day']['count'] > 0:
+            pattern_table.add_row(
+                "Peak Day",
+                f"{patterns['peak_day']['day']} ({patterns['peak_day']['count']} queries)"
+            )
+
+        if 'activity' in patterns:
+            pattern_table.add_row(
+                "Activity Rate",
+                f"{patterns['activity']['active_days']}/{patterns['activity']['total_days']} days ({patterns['activity']['activity_rate']:.1f}%)"
+            )
+
+        if 'popular_products' in patterns and patterns['popular_products']:
+            products = ", ".join([f"{p[0]} ({p[1]})" for p in patterns['popular_products'][:3]])
+            pattern_table.add_row("Top Products", products)
+
+        if 'popular_languages' in patterns and patterns['popular_languages']:
+            langs = ", ".join([f"{l[0]} ({l[1]})" for l in patterns['popular_languages']])
+            pattern_table.add_row("Languages", langs)
+
+        console.print(pattern_table)
+        console.print()
+
+    # 3. Parsing Accuracy
+    if format == 'full':
+        console.print("[bold green]🎯 Parsing Accuracy by Method[/bold green]")
+        accuracy = analytics_engine.get_parsing_accuracy()
+
+        if accuracy:
+            acc_table = Table(show_header=True, header_style="bold cyan")
+            acc_table.add_column("Method", style="white", width=12)
+            acc_table.add_column("Count", style="cyan", width=10)
+            acc_table.add_column("Avg Confidence", style="green", width=15)
+            acc_table.add_column("Avg Results", style="yellow", width=15)
+            acc_table.add_column("Success Rate", style="magenta", width=15)
+
+            for method, metrics in accuracy.items():
+                acc_table.add_row(
+                    method,
+                    str(metrics['count']),
+                    f"{metrics['avg_confidence']:.1%}",
+                    f"{metrics['avg_results']:.1f}",
+                    f"{metrics['success_rate']:.1f}%"
+                )
+
+            console.print(acc_table)
+            console.print()
+
+    # 4. Query Complexity Analysis
+    if format == 'full':
+        console.print("[bold green]🧩 Query Complexity Analysis[/bold green]")
+        complexity = analytics_engine.get_query_complexity_analysis()
+
+        if complexity:
+            comp_table = Table(show_header=True, header_style="bold cyan")
+            comp_table.add_column("Complexity", style="white", width=15)
+            comp_table.add_column("Count", style="cyan", width=10)
+            comp_table.add_column("Percentage", style="green", width=15)
+            comp_table.add_column("Avg Exec Time", style="yellow", width=15)
+
+            for level in ['simple', 'medium', 'complex']:
+                if level in complexity:
+                    comp_table.add_row(
+                        level.capitalize(),
+                        str(complexity[level]['count']),
+                        f"{complexity[level]['percentage']:.1f}%",
+                        f"{complexity[level]['avg_exec_time']:.2f}s"
+                    )
+
+            console.print(comp_table)
+            console.print()
+
+    # 5. Trend Analysis
+    trend_days = days or 7
+    console.print(f"[bold green]📊 Trend Analysis ({trend_days} days)[/bold green]")
+    trends = analytics_engine.get_trend_analysis(days=trend_days)
+
+    if trends and trends.get('total_queries', 0) > 0:
+        trend_table = Table(show_header=True, header_style="bold cyan")
+        trend_table.add_column("Metric", style="white", width=20)
+        trend_table.add_column("Value", style="yellow", width=30)
+
+        trend_table.add_row("Period", f"{trends['period_days']} days")
+        trend_table.add_row("Total Queries", str(trends['total_queries']))
+        trend_table.add_row("Avg per Day", f"{trends['avg_per_day']:.1f}")
+        trend_table.add_row("Growth Rate", f"{trends['growth_rate']:+.1f}%")
+
+        console.print(trend_table)
+        console.print()
+
+        # Daily stats
+        if format == 'full' and 'daily_stats' in trends and trends['daily_stats']:
+            console.print("[bold]Daily Breakdown:[/bold]")
+            daily_table = Table(show_header=True, header_style="bold cyan")
+            daily_table.add_column("Date", style="white", width=12)
+            daily_table.add_column("Queries", style="cyan", width=10)
+            daily_table.add_column("Avg Confidence", style="green", width=15)
+            daily_table.add_column("Avg Results", style="yellow", width=15)
+
+            for date, stats in sorted(trends['daily_stats'].items())[-7:]:  # Last 7 days
+                daily_table.add_row(
+                    date,
+                    str(stats['count']),
+                    f"{stats['avg_confidence']:.1%}",
+                    f"{stats['avg_results']:.1f}"
+                )
+
+            console.print(daily_table)
+            console.print()
+    else:
+        console.print(f"[yellow]No queries in the last {trend_days} days.[/yellow]\n")
+
+    # 6. Export Report
+    if export:
+        console.print(f"[bold]Exporting report to:[/bold] [cyan]{export}[/cyan]")
+        report = analytics_engine.generate_report(output_file=Path(export))
+        console.print(f"[green]✓[/green] Report exported successfully")
+        console.print(f"[dim]Report contains: {len(report)} sections[/dim]")
 
 
 if __name__ == '__main__':
