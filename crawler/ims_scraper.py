@@ -449,6 +449,18 @@ class IMSScraper:
                 # Trigger the onchange event
                 self.page.evaluate("setProductCondition(document.getElementById('productCodes').value, 'ims', 'yijae.shin', 'issueSearch');")
 
+            # Select all status/activities (including Closed issues)
+            # This ensures we search across all issue states: New, Open, Assigned, Resolved, Closed, etc.
+            activities_select = self.page.query_selector('#activities')
+            if activities_select:
+                logger.info("Selecting all issue statuses (including Closed)")
+                # Select all available statuses
+                self.page.evaluate("""
+                    Array.from(document.getElementById('activities').options)
+                        .forEach(opt => opt.selected = true);
+                """)
+                logger.info("Selected all issue statuses")
+
             # Clear any existing search first
             self.page.fill('#keyword', '')
 
