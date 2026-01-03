@@ -52,6 +52,19 @@ class MultilingualPatterns:
                 'my', 'your', 'his', 'its', 'our', 'their',
                 'all', 'some', 'any', 'many', 'much', 'more', 'most',
                 'in', 'on', 'at', 'to', 'from', 'of', 'by', 'for', 'about',
+            ],
+
+            # High priority terms (require ALL - AND operator)
+            'high_priority_patterns': [
+                r'[A-Z]{2,}[0-9]+',              # Error codes: RC16, ORA-1234
+                r'[A-Z][A-Z0-9]{3,}',            # Uppercase tech terms: TIMEOUT, DYNALLOC
+                r'OpenFrame|Tibero|JEUS|WebtoB|ProFrame|ProOBIX',  # Product names
+            ],
+
+            # Low priority terms (remove from query)
+            'low_priority_words': [
+                'issue', 'problem', 'cause', 'solution', 'reason', 'fix',
+                'handling', 'resolution', 'analysis', 'description'
             ]
         },
 
@@ -83,8 +96,114 @@ class MultilingualPatterns:
                 '이', '그', '저', '것', '수', '등', '들', '좀', '더', '를', '을',
                 '가', '이가', '에', '에서', '으로', '로', '의', '도', '만', '까지',
                 '부터', '조차', '마저', '은', '는', '이는', '있는', '없는', '되는',
-                '하는', '한', '할', '해', '줘', '주세요', '요', '입니다', '습니다'
-            ]
+                '하는', '한', '할', '해', '줘', '주세요', '요', '입니다', '습니다',
+                '대해', '대해서', '대한'  # "about" - context words
+            ],
+
+            # High priority terms (require ALL - AND operator)
+            # Technical terms, error codes, product names
+            'high_priority_patterns': [
+                r'[A-Z]{2,}[0-9]+',              # Error codes: SVC99, RC16, etc.
+                r'[A-Z][A-Z0-9]{3,}',            # Uppercase tech terms: TPETIME, DYNALLOC
+                r'OpenFrame|Tibero|JEUS|WebtoB|ProFrame|ProOBIX',  # Product names
+            ],
+
+            # Low priority terms (remove from query)
+            # Context words that add noise
+            'low_priority_words': [
+                '발생', '관련', '대해서', '대해', '대한', '문제', '이슈', '현상',
+                '원인', '대응', '방안', '해결', '처리', '조치', '내용'
+            ],
+
+            # Korean particles that often attach to words (for post-processing)
+            # These should be stripped from the end of words
+            'particles': [
+                '의',    # possessive (error의 → error)
+                '을', '를',  # object markers
+                '이', '가',  # subject markers
+                '은', '는',  # topic markers
+                '에', '에서',  # location markers (발생원인에 → 발생원인)
+                '와', '과',  # conjunction "and" (발생원인과 → 발생원인)
+                '로', '으로',  # direction/method markers
+                '도', '만', '까지', '부터',  # other particles
+                '서', '줘', '요'  # verb endings (알려줘 → 알려)
+            ],
+
+            # Intent keywords - words that express search intent, not actual search terms
+            # These represent what the user wants to know (cause, solution, info)
+            # Should be filtered out from search query
+            'intent_keywords': [
+                # Cause-related intent (원인 문의)
+                '원인', '발생원인', '근본원인',
+                '이유', '사유', '배경', '계기',
+
+                # Solution-related intent (해결책 문의)
+                '해결', '해결책', '해결방안', '해결방법',
+                '대응', '대응책', '대응방안', '대응방법',
+                '처리', '처리방법', '처리방안',
+                '조치', '조치사항', '조치방법',
+
+                # Information request intent (정보 요청)
+                '정보', '내용', '설명', '상세', '자세히',
+                '가이드', '매뉴얼', '문서',
+                '방법', '방안', '절차', '순서',
+
+                # Analysis/investigation intent (분석 요청)
+                '분석', '분석결과', '조사', '검토',
+                '확인', '점검', '진단',
+            ],
+
+            # English-Korean synonyms for technical terms
+            # Expands English keywords to include Korean equivalents for better search coverage
+            # Format: 'english_term': ['english_term', 'korean_equivalent1', 'korean_equivalent2']
+            'synonyms': {
+                # Common error terms
+                'error': ['error', '에러', '오류'],
+                'errors': ['errors', '에러', '오류'],
+
+                # Time-related issues
+                'timeout': ['timeout', '타임아웃', '시간초과', 'TPETIME'],
+                'timeouts': ['timeouts', '타임아웃', '시간초과'],
+
+                # Failure/problem terms
+                'failure': ['failure', '실패', '장애', '장해'],
+                'fail': ['fail', '실패', '장애'],
+                'crash': ['crash', '크래시', '충돌', '다운'],
+                'hung': ['hung', '행', '멈춤', 'hang'],
+                'hang': ['hang', '행', '멈춤', 'hung'],
+
+                # Issue/bug terms
+                'issue': ['issue', '이슈', '문제'],
+                'issues': ['issues', '이슈', '문제'],
+                'bug': ['bug', '버그', '결함'],
+                'bugs': ['bugs', '버그', '결함'],
+                'problem': ['problem', '문제', '이슈'],
+                'problems': ['problems', '문제', '이슈'],
+
+                # Performance terms
+                'slow': ['slow', '느림', '지연'],
+                'performance': ['performance', '성능', '퍼포먼스'],
+                'delay': ['delay', '지연', '딜레이'],
+
+                # Data/connection terms
+                'connection': ['connection', '연결', '접속', '커넥션'],
+                'disconnect': ['disconnect', '연결끊김', '단절', '접속끊김'],
+                'data': ['data', '데이터', '자료'],
+
+                # Process/execution terms
+                'abort': ['abort', '중단', '어보트'],
+                'abend': ['abend', '비정상종료', '어벤드'],
+                'terminate': ['terminate', '종료', '중단'],
+
+                # Memory/resource terms
+                'memory': ['memory', '메모리', '기억장치'],
+                'leak': ['leak', '누수', '릭'],
+                'overflow': ['overflow', '오버플로우', '넘침'],
+
+                # Database terms
+                'deadlock': ['deadlock', '데드락', '교착'],
+                'lock': ['lock', '락', '잠금'],
+            }
         },
 
         # Japanese patterns (Phase 2)

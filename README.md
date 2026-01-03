@@ -248,6 +248,81 @@ ollama serve
 
 ---
 
+## 🔍 Hybrid Search (NEW!)
+
+Search through crawled issues using AI-powered hybrid search (BM25 + Semantic).
+
+### Features
+
+- ✅ **Hybrid Search**: Combines keyword matching (BM25) + semantic understanding
+- 🌏 **Multi-language**: Optimized for Korean/Japanese/English
+- 🎯 **High Accuracy**: Character n-grams for CJK languages
+- ⚡ **Fast Results**: Pre-optimized with 30% BM25 + 70% Semantic weighting
+
+### Quick Examples
+
+**Search in latest session**:
+```bash
+python main.py search -q "TPETIME 에러 원인"
+```
+
+**Search in specific session**:
+```bash
+python main.py search -q "timeout error" -s OpenFrame_TPETIME_20260103_045204
+```
+
+**Filter by product and show more results**:
+```bash
+python main.py search -q "batch job failure" -p OpenFrame -k 20
+```
+
+**Show detailed scores**:
+```bash
+python main.py search -q "connection timeout" --show-scores
+```
+
+### Installation
+
+Hybrid search requires additional dependencies:
+
+```bash
+pip install sentence-transformers rank-bm25
+```
+
+### How It Works
+
+1. **BM25 (30%)**: Keyword-based matching for exact terms
+2. **Semantic (70%)**: AI understanding of meaning and context
+3. **Character N-grams**: Special tokenization for Korean/Japanese
+4. **Hybrid Scoring**: Combines both approaches for best results
+
+**Example**:
+```
+Query: "TPETIME 에러 원인"
+
+BM25:     Finds exact "TPETIME", "에러" keywords
+Semantic: Understands "timeout", "error", "cause" meanings
+Result:   Best of both → Issue 325259 (Score: 0.840)
+```
+
+### Command Options
+
+```bash
+python main.py search --help
+
+Options:
+  -q, --query TEXT      Search query (Korean/Japanese/English) [required]
+  -s, --session TEXT    Session folder name or auto-detect latest
+  -p, --product TEXT    Filter by product for auto-detection
+  -k, --top-k INTEGER   Number of results (default: 10)
+  --show-scores         Show BM25 + Semantic breakdown
+  --threshold FLOAT     Minimum score 0.0-1.0 (default: 0.0)
+```
+
+**See [HYBRID_SEARCH_GUIDE.md](HYBRID_SEARCH_GUIDE.md) for complete guide and performance benchmarks**
+
+---
+
 ## 📖 IMS Search Syntax
 
 > 📚 **See [SEARCH_GUIDE.md](SEARCH_GUIDE.md) for complete search syntax guide with examples**

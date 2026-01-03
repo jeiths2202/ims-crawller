@@ -52,3 +52,22 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434")
 LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "10"))
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "50"))
+
+# PostgreSQL Database Settings
+USE_DATABASE = os.getenv("USE_DATABASE", "false").lower() == "true"
+DATABASE_HOST = os.getenv("DATABASE_HOST", "localhost")
+DATABASE_PORT = int(os.getenv("DATABASE_PORT", "5432"))
+DATABASE_NAME = os.getenv("DATABASE_NAME", "ims_crawler")
+DATABASE_USER = os.getenv("DATABASE_USER", "ims_user")
+DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD", "")
+DATABASE_SCHEMA = os.getenv("DATABASE_SCHEMA", "ims")
+
+# Database Connection Pool Settings
+DATABASE_POOL_SIZE = int(os.getenv("DATABASE_POOL_SIZE", "5"))
+DATABASE_MAX_OVERFLOW = int(os.getenv("DATABASE_MAX_OVERFLOW", "10"))
+DATABASE_POOL_TIMEOUT = int(os.getenv("DATABASE_POOL_TIMEOUT", "30"))
+DATABASE_POOL_RECYCLE = int(os.getenv("DATABASE_POOL_RECYCLE", "3600"))
+
+# Database Performance Settings
+DATABASE_ECHO = os.getenv("DATABASE_ECHO", "false").lower() == "true"
+DATABASE_ECHO_POOL = os.getenv("DATABASE_ECHO_POOL", "false").lower() == "true"
