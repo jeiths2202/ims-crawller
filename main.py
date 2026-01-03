@@ -336,7 +336,7 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
     # Create session folder with timestamp
     from datetime import datetime
     session_folder_name = create_crawl_folder_name(product, final_query, datetime.now())
-    session_folder = Path("data/crawl_sessions") / session_folder_name
+    session_folder = Path("data") / "users" / settings.IMS_USERNAME / "sessions" / session_folder_name
     session_folder.mkdir(parents=True, exist_ok=True)
 
     # Create attachments subfolder within session
@@ -1086,7 +1086,7 @@ def generate_report(query, product, input_dir, output, language, use_llm, llm_mo
     if input_dir is None:
         console.print(f"[yellow]🔍[/yellow] Auto-detecting latest crawl session for product: [cyan]{product}[/cyan]")
 
-        base_dir = Path("data/crawl_sessions")
+        base_dir = Path("data") / "users" / settings.IMS_USERNAME / "sessions"
         latest_folder = get_latest_crawl_folder(base_dir, product=product)
 
         if latest_folder is None:
@@ -1112,10 +1112,13 @@ def generate_report(query, product, input_dir, output, language, use_llm, llm_mo
 
     # Generate output filename if not specified
     if not output:
-        # Create filename from query
-        safe_query = "".join(c if c.isalnum() else '_' for c in query)
-        timestamp = datetime.now().strftime("%Y%m%d")
-        output = f"{safe_query}_{timestamp}_report.md"
+        # Create analytics folder structure: data/users/${userid}/analytics/
+        analytics_dir = Path("data") / "users" / settings.IMS_USERNAME / "analytics"
+        analytics_dir.mkdir(parents=True, exist_ok=True)
+
+        # Use session folder name as report filename
+        session_folder_name = input_path.name
+        output = analytics_dir / f"{session_folder_name}.md"
 
     output_path = Path(output)
 
@@ -1254,7 +1257,7 @@ def search(query, session, product, top_k, show_scores, threshold):
         session_path = Path(session)
         if not session_path.is_absolute():
             # Treat as session folder name
-            session_path = Path("data/crawl_sessions") / session
+            session_path = Path("data") / "users" / settings.IMS_USERNAME / "sessions" / session
 
         if not session_path.exists():
             console.print(f"[red]✗[/red] Session folder not found: {session_path}")
@@ -1268,7 +1271,7 @@ def search(query, session, product, top_k, show_scores, threshold):
         if product:
             console.print(f"[dim]Filtering by product: {product}[/dim]")
 
-        base_dir = Path("data/crawl_sessions")
+        base_dir = Path("data") / "users" / settings.IMS_USERNAME / "sessions"
         latest_folder = get_latest_crawl_folder(base_dir, product=product)
 
         if latest_folder is None:
