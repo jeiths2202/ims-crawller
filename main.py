@@ -112,7 +112,17 @@ def cli():
     default=False,
     help='Disable LLM fallback, use rules-only parsing (faster)'
 )
-def crawl(product, keywords, max_results, output_dir, headless, crawl_related, max_depth, no_confirm, no_llm):
+@click.option(
+    '--user-id',
+    type=int,
+    help='User ID for database operations (if not specified, uses default from username)'
+)
+@click.option(
+    '--use-database/--no-database',
+    default=settings.USE_DATABASE,
+    help=f'Save crawl data to PostgreSQL database (default: {"enabled" if settings.USE_DATABASE else "disabled"})'
+)
+def crawl(product, keywords, max_results, output_dir, headless, crawl_related, max_depth, no_confirm, no_llm, user_id, use_database):
     """
     Crawl IMS issues based on search criteria
 
@@ -203,6 +213,25 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
         console.print("[red]❌ Error: IMS credentials not configured[/red]")
         console.print("Please set IMS_USERNAME and IMS_PASSWORD in .env file")
         sys.exit(1)
+
+    # Determine user_id for database operations
+    db_user_id = user_id
+    if use_database and not db_user_id:
+        # Try to look up user by username
+        try:
+            from database import get_session, User
+            with get_session() as session:
+                user = session.query(User).filter_by(username=settings.IMS_USERNAME).first()
+                if user:
+                    db_user_id = user.user_id
+                    console.print(f"[dim]Using database user_id={db_user_id} for username '{settings.IMS_USERNAME}'[/dim]")
+                else:
+                    console.print(f"[yellow]⚠[/yellow] User '{settings.IMS_USERNAME}' not found in database, using default user_id=2")
+                    db_user_id = 2  # Default to yijae.shin user
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Failed to lookup user_id: {e}")
+            console.print("[yellow]⚠[/yellow] Continuing without database")
+            use_database = False
 
     # Natural Language Query Parsing
     final_query = keywords  # Default: use keywords as-is
@@ -327,6 +356,9 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
     config_table.add_row("Crawl Related Issues", "Yes" if crawl_related else "No")
     if crawl_related:
         config_table.add_row("Max Depth", str(max_depth))
+    config_table.add_row("Database", "Enabled" if use_database else "Disabled")
+    if use_database and db_user_id:
+        config_table.add_row("Database User ID", str(db_user_id))
 
     console.print(config_table)
     console.print()
@@ -346,7 +378,9 @@ def crawl(product, keywords, max_results, output_dir, headless, crawl_related, m
             output_dir=session_folder,
             attachments_dir=attachments_folder,
             headless=headless,
-            cookie_file=settings.COOKIE_FILE
+            cookie_file=settings.COOKIE_FILE,
+            user_id=db_user_id,
+            use_database=use_database
         ) as scraper:
 
             # Execute crawl
@@ -1337,6 +1371,494 @@ def search(query, session, product, top_k, show_scores, threshold):
     if filtered_results:
         first_result = filtered_results[0]
         console.print(f"\n[cyan]💡 Tip:[/cyan] View full issue: [bold]{first_result['file_path']}[/bold]")
+
+
+@cli.group()
+def db():
+    """
+    Database management commands
+
+    Manage and query the PostgreSQL database for crawl history,
+    statistics, and data exploration.
+    """
+    pass
+
+
+@db.command()
+@click.option(
+    '--user-id',
+    type=int,
+    help='User ID (default: current user from .env)'
+)
+def stats(user_id):
+    """
+    Display user statistics and database summary
+
+    Shows comprehensive statistics including:
+    - Total sessions and issues crawled
+    - Average crawl performance metrics
+    - Database storage information
+    - Recent activity summary
+
+    Examples:
+
+    \b
+    # Show stats for current user
+    $ python main.py db stats
+
+    \b
+    # Show stats for specific user
+    $ python main.py db stats --user-id 2
+    """
+    from database import get_session, User, CrawlSession, Issue
+    from sqlalchemy import func, text
+
+    # Determine user_id
+    if not user_id:
+        try:
+            with get_session() as session:
+                user = session.query(User).filter_by(username=settings.IMS_USERNAME).first()
+                if user:
+                    user_id = user.user_id
+                else:
+                    console.print(f"[yellow]⚠[/yellow] User '{settings.IMS_USERNAME}' not found, using user_id=2")
+                    user_id = 2
+        except Exception as e:
+            console.print(f"[red]✗[/red] Database connection failed: {e}")
+            return
+
+    try:
+        with get_session(user_id=user_id) as session:
+            # Get user info
+            user = session.get(User, user_id)
+            if not user:
+                console.print(f"[red]✗[/red] User ID {user_id} not found")
+                return
+
+            console.print()
+            console.print(Panel(
+                f"[bold cyan]User:[/bold cyan] {user.username}\n"
+                f"[bold cyan]Email:[/bold cyan] {user.email or 'N/A'}\n"
+                f"[bold cyan]Role:[/bold cyan] {user.role or 'user'}",
+                title="👤 User Information",
+                border_style="cyan"
+            ))
+            console.print()
+
+            # Session statistics
+            session_stats = session.query(
+                func.count(CrawlSession.session_id).label('total_sessions'),
+                func.sum(CrawlSession.issues_crawled).label('total_issues'),
+                func.sum(CrawlSession.attachments_downloaded).label('total_attachments'),
+                func.avg(CrawlSession.duration_seconds).label('avg_duration'),
+                func.avg(CrawlSession.avg_issue_time_ms).label('avg_issue_time')
+            ).filter(CrawlSession.user_id == user_id).first()
+
+            # Recent sessions
+            recent = session.query(CrawlSession).filter(
+                CrawlSession.user_id == user_id
+            ).order_by(CrawlSession.started_at.desc()).limit(5).all()
+
+            # Status breakdown
+            status_counts = session.query(
+                CrawlSession.status,
+                func.count(CrawlSession.session_id).label('count')
+            ).filter(CrawlSession.user_id == user_id).group_by(CrawlSession.status).all()
+
+            # Display statistics
+            stats_table = Table(title="📊 Crawl Statistics", show_header=False)
+            stats_table.add_column("Metric", style="cyan")
+            stats_table.add_column("Value", style="green")
+
+            stats_table.add_row("Total Sessions", str(session_stats.total_sessions or 0))
+            stats_table.add_row("Total Issues Crawled", str(session_stats.total_issues or 0))
+            stats_table.add_row("Total Attachments", str(session_stats.total_attachments or 0))
+
+            if session_stats.avg_duration:
+                stats_table.add_row("Avg Session Duration", f"{session_stats.avg_duration:.1f} seconds")
+            if session_stats.avg_issue_time:
+                stats_table.add_row("Avg Issue Crawl Time", f"{session_stats.avg_issue_time:.0f} ms")
+
+            console.print(stats_table)
+            console.print()
+
+            # Status breakdown
+            if status_counts:
+                status_table = Table(title="📈 Session Status")
+                status_table.add_column("Status", style="cyan")
+                status_table.add_column("Count", style="green", justify="right")
+
+                for status, count in status_counts:
+                    status_style = {
+                        'completed': 'green',
+                        'running': 'yellow',
+                        'failed': 'red'
+                    }.get(status, 'white')
+                    status_table.add_row(f"[{status_style}]{status}[/{status_style}]", str(count))
+
+                console.print(status_table)
+                console.print()
+
+            # Recent activity
+            if recent:
+                recent_table = Table(title="🕒 Recent Sessions")
+                recent_table.add_column("ID", style="cyan", width=4)
+                recent_table.add_column("Date", style="white", width=19)
+                recent_table.add_column("Product", style="yellow", width=12)
+                recent_table.add_column("Query", style="white", width=30)
+                recent_table.add_column("Issues", style="green", justify="right", width=6)
+                recent_table.add_column("Status", style="white", width=10)
+
+                for sess in recent:
+                    status_style = {
+                        'completed': 'green',
+                        'running': 'yellow',
+                        'failed': 'red'
+                    }.get(sess.status, 'white')
+
+                    query_preview = sess.original_query[:27] + "..." if len(sess.original_query) > 30 else sess.original_query
+
+                    recent_table.add_row(
+                        str(sess.session_id),
+                        sess.started_at.strftime('%Y-%m-%d %H:%M:%S') if sess.started_at else 'N/A',
+                        sess.product[:12] if sess.product else 'N/A',
+                        query_preview,
+                        str(sess.issues_crawled or 0),
+                        f"[{status_style}]{sess.status}[/{status_style}]"
+                    )
+
+                console.print(recent_table)
+                console.print()
+
+            # Database size info
+            try:
+                db_size = session.execute(text(
+                    "SELECT pg_size_pretty(pg_database_size('ims_crawler')) as size"
+                )).fetchone()
+
+                console.print(f"[dim]Database size: {db_size[0]}[/dim]")
+            except:
+                pass
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to retrieve statistics: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+@db.command()
+@click.option(
+    '--user-id',
+    type=int,
+    help='User ID (default: current user from .env)'
+)
+@click.option(
+    '--limit',
+    type=int,
+    default=20,
+    help='Number of sessions to show (default: 20)'
+)
+@click.option(
+    '--product',
+    help='Filter by product name'
+)
+@click.option(
+    '--status',
+    type=click.Choice(['completed', 'running', 'failed']),
+    help='Filter by status'
+)
+@click.option(
+    '--details/--no-details',
+    default=False,
+    help='Show detailed information for each session'
+)
+def history(user_id, limit, product, status, details):
+    """
+    Show crawl session history
+
+    Display a list of past crawl sessions with filters and options
+    for detailed information.
+
+    Examples:
+
+    \b
+    # Show recent 20 sessions
+    $ python main.py db history
+
+    \b
+    # Show last 50 sessions
+    $ python main.py db history --limit 50
+
+    \b
+    # Show only completed OpenFrame sessions
+    $ python main.py db history --product OpenFrame --status completed
+
+    \b
+    # Show detailed information
+    $ python main.py db history --limit 10 --details
+    """
+    from database import get_session, User, CrawlSession, SessionIssue, Issue
+    from sqlalchemy import func
+
+    # Determine user_id
+    if not user_id:
+        try:
+            with get_session() as session:
+                user = session.query(User).filter_by(username=settings.IMS_USERNAME).first()
+                if user:
+                    user_id = user.user_id
+                else:
+                    console.print(f"[yellow]⚠[/yellow] User '{settings.IMS_USERNAME}' not found, using user_id=2")
+                    user_id = 2
+        except Exception as e:
+            console.print(f"[red]✗[/red] Database connection failed: {e}")
+            return
+
+    try:
+        with get_session(user_id=user_id) as session:
+            # Build query
+            query = session.query(CrawlSession).filter(CrawlSession.user_id == user_id)
+
+            # Apply filters
+            if product:
+                query = query.filter(CrawlSession.product.ilike(f'%{product}%'))
+            if status:
+                query = query.filter(CrawlSession.status == status)
+
+            # Order and limit
+            query = query.order_by(CrawlSession.started_at.desc()).limit(limit)
+
+            sessions = query.all()
+
+            if not sessions:
+                console.print("[yellow]No sessions found matching criteria[/yellow]")
+                return
+
+            console.print()
+
+            if not details:
+                # Summary table
+                table = Table(title=f"📚 Session History ({len(sessions)} sessions)")
+                table.add_column("ID", style="cyan", width=4)
+                table.add_column("Started", style="white", width=19)
+                table.add_column("Product", style="yellow", width=12)
+                table.add_column("Query", style="white", width=35)
+                table.add_column("Found", style="blue", justify="right", width=6)
+                table.add_column("Crawled", style="green", justify="right", width=7)
+                table.add_column("Duration", style="magenta", justify="right", width=8)
+                table.add_column("Status", style="white", width=10)
+
+                for sess in sessions:
+                    status_style = {
+                        'completed': 'green',
+                        'running': 'yellow',
+                        'failed': 'red'
+                    }.get(sess.status, 'white')
+
+                    query_preview = sess.original_query[:32] + "..." if len(sess.original_query) > 35 else sess.original_query
+                    duration_str = f"{sess.duration_seconds}s" if sess.duration_seconds else "N/A"
+
+                    table.add_row(
+                        str(sess.session_id),
+                        sess.started_at.strftime('%Y-%m-%d %H:%M:%S') if sess.started_at else 'N/A',
+                        sess.product[:12] if sess.product else 'N/A',
+                        query_preview,
+                        str(sess.total_issues_found or 0),
+                        str(sess.issues_crawled or 0),
+                        duration_str,
+                        f"[{status_style}]{sess.status}[/{status_style}]"
+                    )
+
+                console.print(table)
+            else:
+                # Detailed view
+                for i, sess in enumerate(sessions, 1):
+                    status_style = {
+                        'completed': 'green',
+                        'running': 'yellow',
+                        'failed': 'red'
+                    }.get(sess.status, 'white')
+
+                    # Get issues for this session
+                    issue_count = session.query(func.count(SessionIssue.issue_pk)).filter(
+                        SessionIssue.session_id == sess.session_id
+                    ).scalar()
+
+                    details_text = f"[bold]Session ID:[/bold] {sess.session_id}\n"
+                    details_text += f"[bold]UUID:[/bold] {sess.session_uuid}\n"
+                    details_text += f"[bold]Product:[/bold] {sess.product}\n"
+                    details_text += f"[bold]Query:[/bold] {sess.original_query}\n"
+                    details_text += f"[bold]Parsed Query:[/bold] {sess.parsed_query}\n"
+                    details_text += f"[bold]Status:[/bold] [{status_style}]{sess.status}[/{status_style}]\n\n"
+
+                    details_text += f"[bold cyan]Results:[/bold cyan]\n"
+                    details_text += f"  Issues Found: {sess.total_issues_found or 0}\n"
+                    details_text += f"  Issues Crawled: {sess.issues_crawled or 0}\n"
+                    details_text += f"  Attachments: {sess.attachments_downloaded or 0}\n"
+                    details_text += f"  Failed: {sess.failed_issues or 0}\n\n"
+
+                    if sess.search_time_ms:
+                        details_text += f"[bold magenta]Performance:[/bold magenta]\n"
+                        details_text += f"  Search Time: {sess.search_time_ms}ms\n"
+                        details_text += f"  Crawl Time: {sess.crawl_time_ms or 'N/A'}ms\n"
+                        details_text += f"  Avg Issue Time: {sess.avg_issue_time_ms or 'N/A'}ms\n"
+                        details_text += f"  Total Duration: {sess.duration_seconds or 'N/A'}s\n"
+                        details_text += f"  Workers: {sess.parallel_workers or 1}\n\n"
+
+                    details_text += f"[bold yellow]Timeline:[/bold yellow]\n"
+                    details_text += f"  Started: {sess.started_at.strftime('%Y-%m-%d %H:%M:%S') if sess.started_at else 'N/A'}\n"
+                    details_text += f"  Completed: {sess.completed_at.strftime('%Y-%m-%d %H:%M:%S') if sess.completed_at else 'N/A'}"
+
+                    console.print(Panel(
+                        details_text,
+                        title=f"📋 Session {i}/{len(sessions)}",
+                        border_style=status_style
+                    ))
+                    console.print()
+
+            # Summary
+            total_issues = sum(s.issues_crawled or 0 for s in sessions)
+            console.print(f"[dim]Total issues crawled: {total_issues}[/dim]")
+            console.print()
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to retrieve history: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+@db.command()
+@click.argument('session_id', type=int)
+def session(session_id):
+    """
+    Show detailed information for a specific session
+
+    Display complete information including all issues crawled,
+    errors encountered, and performance metrics.
+
+    Examples:
+
+    \b
+    # Show session details
+    $ python main.py db session 7
+    """
+    from database import get_session, CrawlSession, SessionIssue, Issue, SessionError
+
+    try:
+        with get_session() as session:
+            # Get session
+            crawl_session = session.get(CrawlSession, session_id)
+
+            if not crawl_session:
+                console.print(f"[red]✗[/red] Session {session_id} not found")
+                return
+
+            status_style = {
+                'completed': 'green',
+                'running': 'yellow',
+                'failed': 'red'
+            }.get(crawl_session.status, 'white')
+
+            # Session info
+            console.print()
+            session_info = f"[bold]UUID:[/bold] {crawl_session.session_uuid}\n"
+            session_info += f"[bold]User ID:[/bold] {crawl_session.user_id}\n"
+            session_info += f"[bold]Product:[/bold] {crawl_session.product}\n"
+            session_info += f"[bold]Status:[/bold] [{status_style}]{crawl_session.status}[/{status_style}]\n\n"
+
+            session_info += f"[bold cyan]Query:[/bold cyan]\n"
+            session_info += f"  Original: {crawl_session.original_query}\n"
+            session_info += f"  Parsed: {crawl_session.parsed_query}\n"
+            session_info += f"  Language: {crawl_session.query_language}\n\n"
+
+            session_info += f"[bold green]Results:[/bold green]\n"
+            session_info += f"  Found: {crawl_session.total_issues_found or 0}\n"
+            session_info += f"  Crawled: {crawl_session.issues_crawled or 0}\n"
+            session_info += f"  Attachments: {crawl_session.attachments_downloaded or 0}\n"
+            session_info += f"  Failed: {crawl_session.failed_issues or 0}\n\n"
+
+            if crawl_session.search_time_ms:
+                session_info += f"[bold magenta]Performance:[/bold magenta]\n"
+                session_info += f"  Search: {crawl_session.search_time_ms}ms\n"
+                session_info += f"  Crawl: {crawl_session.crawl_time_ms or 'N/A'}ms\n"
+                session_info += f"  Avg/Issue: {crawl_session.avg_issue_time_ms or 'N/A'}ms\n"
+                session_info += f"  Duration: {crawl_session.duration_seconds or 'N/A'}s\n"
+                session_info += f"  Workers: {crawl_session.parallel_workers or 1}\n\n"
+
+            session_info += f"[bold yellow]Timeline:[/bold yellow]\n"
+            session_info += f"  Started: {crawl_session.started_at.strftime('%Y-%m-%d %H:%M:%S') if crawl_session.started_at else 'N/A'}\n"
+            session_info += f"  Completed: {crawl_session.completed_at.strftime('%Y-%m-%d %H:%M:%S') if crawl_session.completed_at else 'N/A'}"
+
+            console.print(Panel(
+                session_info,
+                title=f"📋 Session {session_id}",
+                border_style=status_style
+            ))
+            console.print()
+
+            # Get issues
+            session_issues = session.query(SessionIssue, Issue).join(
+                Issue, SessionIssue.issue_pk == Issue.issue_pk
+            ).filter(
+                SessionIssue.session_id == session_id
+            ).order_by(SessionIssue.crawl_order).all()
+
+            if session_issues:
+                issues_table = Table(title=f"🔍 Issues ({len(session_issues)})")
+                issues_table.add_column("#", style="cyan", width=3)
+                issues_table.add_column("Issue ID", style="yellow", width=10)
+                issues_table.add_column("Title", style="white", width=60)
+                issues_table.add_column("Time", style="magenta", justify="right", width=8)
+
+                for si, issue in session_issues:
+                    title_preview = issue.title[:57] + "..." if len(issue.title) > 60 else issue.title
+                    time_str = f"{si.crawl_duration_ms}ms" if si.crawl_duration_ms else "N/A"
+
+                    issues_table.add_row(
+                        str(si.crawl_order) if si.crawl_order else "N/A",
+                        issue.issue_id,
+                        title_preview,
+                        time_str
+                    )
+
+                console.print(issues_table)
+                console.print()
+
+            # Get errors
+            errors = session.query(SessionError).filter(
+                SessionError.session_id == session_id
+            ).order_by(SessionError.occurred_at).all()
+
+            if errors:
+                errors_table = Table(title=f"⚠️  Errors ({len(errors)})")
+                errors_table.add_column("Time", style="white", width=19)
+                errors_table.add_column("Type", style="yellow", width=20)
+                errors_table.add_column("Severity", style="red", width=10)
+                errors_table.add_column("Message", style="white", width=50)
+
+                for error in errors:
+                    severity_style = {
+                        'error': 'red',
+                        'warning': 'yellow',
+                        'info': 'blue'
+                    }.get(error.severity, 'white')
+
+                    msg_preview = error.error_message[:47] + "..." if len(error.error_message) > 50 else error.error_message
+
+                    errors_table.add_row(
+                        error.occurred_at.strftime('%Y-%m-%d %H:%M:%S') if error.occurred_at else 'N/A',
+                        error.error_type,
+                        f"[{severity_style}]{error.severity}[/{severity_style}]",
+                        msg_preview
+                    )
+
+                console.print(errors_table)
+                console.print()
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to retrieve session: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == '__main__':
