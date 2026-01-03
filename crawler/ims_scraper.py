@@ -7,7 +7,7 @@ import json
 import threading
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from playwright.sync_api import sync_playwright, Browser, Page, TimeoutError as PlaywrightTimeout
 
@@ -15,6 +15,7 @@ from .auth import AuthManager, AuthenticationError
 from .search import SearchQueryBuilder
 from .parser import IMSParser
 from .attachment_processor import AttachmentProcessor
+from .db_integration import DatabaseSaver
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,9 @@ class IMSScraper:
         output_dir: Path,
         attachments_dir: Path,
         headless: bool = True,
-        cookie_file: Optional[str] = None
+        cookie_file: Optional[str] = None,
+        user_id: Optional[int] = None,
+        use_database: bool = False
     ):
         self.base_url = base_url
         self.output_dir = output_dir
@@ -39,12 +42,20 @@ class IMSScraper:
         self.cookie_file = cookie_file
         self.username = username
         self.password = password
+        self.user_id = user_id
+        self.use_database = use_database
 
         # Initialize components
         self.auth_manager = AuthManager(base_url, username, password, cookie_file=cookie_file)
         self.query_builder = SearchQueryBuilder()
         self.parser = IMSParser()
         self.attachment_processor = AttachmentProcessor(attachments_dir)
+
+        # Initialize database saver if enabled
+        self.db_saver = None
+        if use_database and user_id:
+            self.db_saver = DatabaseSaver(user_id, enabled=True)
+            logger.info(f"Database integration enabled for user_id={user_id}")
 
         # Browser and page objects (initialized in context manager)
         self.browser: Optional[Browser] = None
@@ -53,6 +64,11 @@ class IMSScraper:
 
         # Thread-safe lock for crawled issues tracking
         self._crawled_lock = threading.Lock()
+
+        # Tracking for statistics
+        self._crawl_start_time = None
+        self._search_time_ms = None
+        self._issue_times = []
 
     def __enter__(self):
         """Context manager entry - initialize browser"""
@@ -95,6 +111,31 @@ class IMSScraper:
         if not self.page:
             raise RuntimeError("Scraper not initialized. Use context manager (with statement)")
 
+        # Start timing
+        self._crawl_start_time = datetime.now(timezone.utc)
+        search_start_time = None
+
+        # Database session creation
+        if self.db_saver:
+            try:
+                session_metadata = {
+                    'crawler_version': '1.0.0',
+                    'headless_mode': self.headless,
+                    'max_depth': max_depth if crawl_related else 0
+                }
+                self.db_saver.create_session(
+                    product=product,
+                    original_query=keywords,
+                    parsed_query=keywords,  # For now, same as original
+                    max_results=max_results,
+                    crawl_related=crawl_related,
+                    session_metadata=session_metadata
+                )
+                logger.info(f"Created database session: {self.db_saver.session_uuid}")
+            except Exception as e:
+                logger.error(f"Failed to create database session: {e}")
+                # Continue without database
+
         try:
             # Step 1: Authenticate
             logger.info("Step 1: Authenticating...")
@@ -107,8 +148,27 @@ class IMSScraper:
 
             # Step 3: Execute search
             logger.info("Step 3: Executing search...")
+            search_start_time = datetime.now(timezone.utc)
             issue_links = self._execute_search(search_query, max_results, product)
-            logger.info(f"Found {len(issue_links)} issues to crawl")
+            search_end_time = datetime.now(timezone.utc)
+
+            # Calculate search time
+            self._search_time_ms = int((search_end_time - search_start_time).total_seconds() * 1000)
+            logger.info(f"Found {len(issue_links)} issues to crawl (search took {self._search_time_ms}ms)")
+
+            # Save search query to database
+            if self.db_saver:
+                try:
+                    self.db_saver.save_search_query(
+                        original_query=keywords,
+                        parsed_query=search_query,
+                        results_count=len(issue_links),
+                        product=product,
+                        parsing_method='rule_based',
+                        parsing_confidence=1.0
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to save search query: {e}")
 
             # Step 4: Crawl each issue (and related issues if enabled)
             logger.info("Step 4: Crawling issues...")
@@ -132,7 +192,8 @@ class IMSScraper:
                         crawled_issue_ids,
                         crawl_related,
                         0,
-                        max_depth
+                        max_depth,
+                        idx  # Pass crawl order
                     )
                     future_to_url[future] = (idx, issue_url)
 
@@ -145,16 +206,80 @@ class IMSScraper:
                         logger.info(f"Completed {idx}/{len(issue_links)}: {issue_url} (+{len(issues)-1} related)")
                     except Exception as e:
                         logger.error(f"Failed to crawl issue {issue_url}: {e}")
+                        # Save error to database
+                        if self.db_saver:
+                            try:
+                                self.db_saver.save_error(
+                                    error_type='crawl_error',
+                                    error_message=str(e),
+                                    severity='error',
+                                    error_detail={'issue_url': issue_url, 'index': idx}
+                                )
+                            except Exception as db_err:
+                                logger.error(f"Failed to save error to database: {db_err}")
                         continue
 
             logger.info(f"Successfully crawled {len(all_crawled_issues)} issues (including related issues)")
+
+            # Complete database session
+            if self.db_saver:
+                try:
+                    crawl_end_time = datetime.now(timezone.utc)
+                    total_crawl_time_ms = int((crawl_end_time - self._crawl_start_time).total_seconds() * 1000)
+                    crawl_time_ms = total_crawl_time_ms - self._search_time_ms
+
+                    # Calculate statistics
+                    avg_issue_time_ms = int(sum(self._issue_times) / len(self._issue_times)) if self._issue_times else 0
+                    attachments_downloaded = sum(
+                        len(issue.get('attachments', [])) for issue in all_crawled_issues
+                    )
+                    related_issues = len(all_crawled_issues) - len(issue_links)
+
+                    self.db_saver.complete_session(
+                        status='completed',
+                        total_issues_found=len(issue_links),
+                        issues_crawled=len(all_crawled_issues),
+                        attachments_downloaded=attachments_downloaded,
+                        failed_issues=len(issue_links) - len([i for i in all_crawled_issues if i.get('crawl_order', 0) <= len(issue_links)]),
+                        related_issues=related_issues,
+                        search_time_ms=self._search_time_ms,
+                        crawl_time_ms=crawl_time_ms,
+                        avg_issue_time_ms=avg_issue_time_ms,
+                        parallel_workers=num_workers
+                    )
+                    logger.info(f"Database session completed: {self.db_saver.session_uuid}")
+                except Exception as e:
+                    logger.error(f"Failed to complete database session: {e}")
+
             return all_crawled_issues
 
         except AuthenticationError as e:
             logger.error(f"Authentication failed: {e}")
+            # Mark session as failed
+            if self.db_saver:
+                try:
+                    self.db_saver.save_error(
+                        error_type='authentication_error',
+                        error_message=str(e),
+                        severity='error'
+                    )
+                    self.db_saver.complete_session(status='failed')
+                except Exception as db_err:
+                    logger.error(f"Failed to save error to database: {db_err}")
             raise
         except Exception as e:
             logger.error(f"Crawling failed: {e}")
+            # Mark session as failed
+            if self.db_saver:
+                try:
+                    self.db_saver.save_error(
+                        error_type='crawl_failure',
+                        error_message=str(e),
+                        severity='error'
+                    )
+                    self.db_saver.complete_session(status='failed')
+                except Exception as db_err:
+                    logger.error(f"Failed to save error to database: {db_err}")
             raise
 
     def _crawl_with_related_parallel(
@@ -163,7 +288,8 @@ class IMSScraper:
         crawled_issue_ids: set,
         crawl_related: bool = False,
         current_depth: int = 0,
-        max_depth: int = 2
+        max_depth: int = 2,
+        crawl_order: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Crawl an issue and optionally its related issues recursively (parallel-safe version)
@@ -175,6 +301,7 @@ class IMSScraper:
             crawl_related: Whether to crawl related issues
             current_depth: Current recursion depth
             max_depth: Maximum recursion depth
+            crawl_order: Order in which this issue was crawled (for database)
 
         Returns:
             List of crawled issue data (main issue + related issues)
@@ -217,11 +344,21 @@ class IMSScraper:
 
             # Crawl this issue
             logger.info(f"[Depth {current_depth}] Crawling issue {issue_id}")
+            issue_start_time = datetime.now(timezone.utc)
             issue_data = self._crawl_issue_detail_with_page(page, issue_url)
+            issue_end_time = datetime.now(timezone.utc)
+
+            # Calculate crawl duration
+            crawl_duration_ms = int((issue_end_time - issue_start_time).total_seconds() * 1000)
+
+            # Add crawl order to issue data
+            if crawl_order:
+                issue_data['crawl_order'] = crawl_order
+
             result.append(issue_data)
 
             # Save progress incrementally (thread-safe)
-            self._save_issue(issue_data)
+            self._save_issue(issue_data, crawl_order, crawl_duration_ms)
 
             # Crawl related issues if enabled and depth allows
             if crawl_related and current_depth < max_depth:
@@ -449,6 +586,18 @@ class IMSScraper:
                 # Trigger the onchange event
                 self.page.evaluate("setProductCondition(document.getElementById('productCodes').value, 'ims', 'yijae.shin', 'issueSearch');")
 
+            # Select all status/activities (including Closed issues)
+            # This ensures we search across all issue states: New, Open, Assigned, Resolved, Closed, etc.
+            activities_select = self.page.query_selector('#activities')
+            if activities_select:
+                logger.info("Selecting all issue statuses (including Closed)")
+                # Select all available statuses
+                self.page.evaluate("""
+                    Array.from(document.getElementById('activities').options)
+                        .forEach(opt => opt.selected = true);
+                """)
+                logger.info("Selected all issue statuses")
+
             # Clear any existing search first
             self.page.fill('#keyword', '')
 
@@ -633,12 +782,19 @@ class IMSScraper:
             logger.error(f"Failed to crawl issue detail {issue_url}: {e}")
             raise
 
-    def _save_issue(self, issue_data: Dict[str, Any]) -> None:
+    def _save_issue(
+        self,
+        issue_data: Dict[str, Any],
+        crawl_order: Optional[int] = None,
+        crawl_duration_ms: Optional[int] = None
+    ) -> None:
         """
-        Save issue data to JSON file
+        Save issue data to JSON file and database
 
         Args:
             issue_data: Issue data dictionary
+            crawl_order: Order in which issue was crawled (for database)
+            crawl_duration_ms: Time taken to crawl issue in milliseconds (for database)
         """
         try:
             issue_id = issue_data.get('issue_id', 'unknown')
@@ -646,10 +802,29 @@ class IMSScraper:
             filename = f"{issue_id}_{timestamp}.json"
             filepath = self.output_dir / filename
 
+            # Save to file
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(issue_data, f, ensure_ascii=False, indent=2)
 
             logger.debug(f"Saved issue to {filepath}")
+
+            # Track timing for statistics
+            if crawl_duration_ms:
+                with self._crawled_lock:
+                    self._issue_times.append(crawl_duration_ms)
+
+            # Save to database
+            if self.db_saver:
+                try:
+                    self.db_saver.save_issue(
+                        issue_data=issue_data,
+                        crawl_order=crawl_order,
+                        crawl_duration_ms=crawl_duration_ms
+                    )
+                    logger.debug(f"Saved issue {issue_id} to database")
+                except Exception as e:
+                    logger.error(f"Failed to save issue {issue_id} to database: {e}")
+                    # Continue even if database save fails
 
         except Exception as e:
             logger.error(f"Failed to save issue {issue_data.get('issue_id')}: {e}")
