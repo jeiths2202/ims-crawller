@@ -23,7 +23,7 @@ class LLMConfig:
     """LLM configuration"""
     model: str = "gemma:2b"
     base_url: str = "http://localhost:11434"
-    timeout: int = 10
+    timeout: int = 3600
     temperature: float = 0.1
     max_tokens: int = 50
 

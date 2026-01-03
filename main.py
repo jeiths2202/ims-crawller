@@ -1015,15 +1015,27 @@ def analytics(days, export, format):
 )
 @click.option(
     '--use-llm/--no-llm',
-    default=False,
-    help='Use local LLM for enhanced analysis (requires Ollama, default: no)'
+    default=None,
+    help='Use local LLM for enhanced analysis (requires Ollama, default: from .env USE_LLM)'
 )
 @click.option(
     '--llm-model',
-    default='gemma:2b',
-    help='LLM model to use (default: gemma:2b)'
+    default=None,
+    help='LLM model to use (default: from .env LLM_MODEL)'
 )
-def generate_report(query, product, input_dir, output, language, use_llm, llm_model):
+@click.option(
+    '--full-issues',
+    is_flag=True,
+    default=False,
+    help='Analyze all search results, not just the main issue (default: False)'
+)
+@click.option(
+    '--create-html',
+    is_flag=True,
+    default=False,
+    help='Generate HTML report with collapsible sections (default: False)'
+)
+def generate_report(query, product, input_dir, output, language, use_llm, llm_model, full_issues, create_html):
     """
     📝 Generate comprehensive markdown report from crawled issue data
 
@@ -1053,6 +1065,12 @@ def generate_report(query, product, input_dir, output, language, use_llm, llm_mo
         title="📝 Report Generator",
         border_style="cyan"
     ))
+
+    # Use settings from .env if not specified in CLI
+    if use_llm is None:
+        use_llm = settings.USE_LLM
+    if llm_model is None:
+        llm_model = settings.LLM_MODEL
 
     # Initialize LLM client if requested
     llm_client = None
@@ -1137,7 +1155,10 @@ def generate_report(query, product, input_dir, output, language, use_llm, llm_mo
             product=product,
             issues=issues,
             output_file=output_path,
-            language=language
+            language=language,
+            session_path=input_path,
+            full_issues=full_issues,
+            create_html=create_html
         )
 
         elapsed = time.time() - start_time
@@ -1369,6 +1390,23 @@ def search(query, session, product, top_k, show_scores, threshold):
         title="✅ Search Summary",
         border_style="green"
     ))
+
+    # Save search results to search_result.json
+    search_result_file = session_path / "search_result.json"
+    try:
+        import json
+        with open(search_result_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                'query': query,
+                'search_date': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'total_results': len(filtered_results),
+                'threshold': threshold,
+                'top_k': top_k,
+                'results': filtered_results
+            }, f, ensure_ascii=False, indent=2)
+        console.print(f"\n[green]✓[/green] Search results saved to: [bold]{search_result_file}[/bold]")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow]  Failed to save search results: {e}")
 
     # Show tip for viewing full content
     if filtered_results:

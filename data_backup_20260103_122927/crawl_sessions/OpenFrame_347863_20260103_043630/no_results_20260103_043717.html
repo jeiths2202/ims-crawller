@@ -1,0 +1,2522 @@
+<html><head>
+<!-- <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/> -->
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>TmaxSoft IMS System [IMS02]</title>
+<base href="/tody/">
+<link rel="SHORTCUT ICON" href="/tody/favicon.ico">
+<link type="text/css" rel="stylesheet" href="css/common/global.css">
+
+
+	<link type="text/css" rel="stylesheet" href="css/ims/ims.css?ver=20230721">
+
+<link type="text/css" rel="stylesheet" href="css/ims/ims2.css?ver=20230801">
+<link type="text/css" rel="stylesheet" href="css/ims/dataTables.bootstrap4.min.css?ver=20230720">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<script type="text/javascript" src="js/common/global.js?ver=20230710"></script>
+<script type="text/javascript" src="js/common/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="js/jquery/jquery.fileDownload.js"></script>
+<script type="text/javascript" src="js/common/util.js?ver=20230720"></script>
+<script type="text/javascript" src="js/ims/ims.js?ver=20230715"></script>
+
+<script type="text/javascript">
+var context = "/tody";
+</script>
+<link type="text/css" href="css/common/token-input-facebook.css" rel="stylesheet">
+<style>
+	ul.token-input-list-facebook {border:1px solid #777; width:290px;}
+	li.token-input-input-token-facebook input {border:none !important;}
+</style>
+<script type="text/javascript" src="js/jquery/jquery.tokeninput.js"></script>
+<script type="text/javascript" src="dwr/interface/IssueCategoryDwr.js"></script>
+<script type="text/javascript" src="dwr/interface/ProductDwr.js"></script>
+<script type="text/javascript" src="dwr/interface/UserDwr.js"></script>
+<script type="text/javascript" src="dwr/engine.js"></script>
+<script type="text/javascript" src="dwr/util.js"></script>
+<script type="text/javascript" src="js/ims/report.js"></script>
+<script type="text/javascript" src="js/ims/search.js?ver=20230720"></script>
+<script type="text/javascript" src="js/common/util.js?ver=20230531"></script>
+<script type="text/javascript" src="js/ims/user.js?ver=20190924"></script><link rel="stylesheet" href="js/jquery/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css"><style type="text/css">	li {font-size: 12px;}></style><script src="js/jquery/jquery-ui-1.12.1.min.js"></script>
+<script type="text/javascript" src="js/jquery/jquery.cookie.js"></script>
+<script type="text/javascript" src="js/common/datepicker.js"></script><link rel="stylesheet" href="css/bootstrap_datepicker/bootstrap-datepicker3.standalone.min.css"><script type="text/javascript" src="js/jquery/bootstrap_datepicker/bootstrap-datepicker.js"></script><script type="text/javascript" src="js/jquery/bootstrap_datepicker/bootstrap-datepicker.kr.min.js"></script><script type="text/javascript" src="js/common/moment.js"></script>
+
+<script type="text/javascript">
+jQuery(document).ready(function(){
+	// 달력
+	// Registered date
+	fn_set_calendar("regStartDate" , 'FROM', 'regEndDate');
+	fn_set_calendar("regEndDate" , 'TO', 'regStartDate');
+	// Modified date
+	fn_set_calendar("modStartDate" , 'FROM', 'modEndDate');
+	fn_set_calendar("modEndDate" , 'TO', 'modStartDate');
+	// Closed date
+	fn_set_calendar("closedStartDate" , 'FROM', 'closedEndDate');
+	fn_set_calendar("closedEndDate" , 'TO', 'closedStartDate');
+	// Expected Date(R&D)
+	fn_set_calendar("rndPatchStartDate" , 'FROM', 'rndPatchEndDate');
+	fn_set_calendar("rndPatchEndDate" , 'TO', 'rndPatchStartDate');
+	//Expected Date(QA)
+	fn_set_calendar("qaTestEndStartDate" , 'FROM', 'qaTestEndEndDate');
+	fn_set_calendar("qaTestEndEndDate" , 'TO', 'qaTestEndStartDate');
+	//Expected Date(PS)
+	fn_set_calendar("siteApplyStartDate" , 'FROM', 'siteApplyEndDate');
+	fn_set_calendar("siteApplyEndDate" , 'TO', 'siteApplyStartDate');
+
+	var statusCombo = jQuery("#activities option:selected");
+	var prodCombo = jQuery("#productCodes option:selected");
+
+	if(prodCombo.length == 1 && statusCombo.length == 1){
+		if(statusCombo.val() == '8'){	// 8 : postpone
+			jQuery("#expectedVersionsTd1").show();
+			jQuery("#expectedVersionsTd2").show();
+		}else{
+			jQuery("#expectedVersionsTd1").hide();
+			jQuery("#expectedVersionsTd2").hide();
+		}
+	}else{
+		jQuery("#expectedVersionsTd1").hide();
+		jQuery("#expectedVersionsTd2").hide();
+	}
+
+	//파트너사 체크
+	checkPartnerMeber();
+
+	// 다건 입력
+	// Reporter 검색
+	jQuery("#registers").tokenInput("ims/user/userListAjax.do?type=ALL", {
+		theme: "facebook",
+		queryParam:"searchText",
+		propertyToSearch: "name",
+		zindex: "99999",
+		preventDuplicates: true,
+		searchDelay: 300,
+		resultsFormatter: function(item){
+			return "<li>" + item[this.propertyToSearch]+  " (" + (item.useFlag == 'N' ? "퇴직": item.deptName) + ") " + item.empNo + "</li>"
+		}
+	});
+
+	// Reporter 세팅
+	
+
+    // Owner 검색
+    jQuery("#owners").tokenInput("ims/user/userListAjax.do?type=ALL", {
+        theme: "facebook",
+        queryParam:"searchText",
+        propertyToSearch: "name",
+        zindex: "99999",
+        preventDuplicates: true,
+        searchDelay: 300,
+        resultsFormatter: function(item){
+			return "<li>" + item[this.propertyToSearch]+  " (" + (item.useFlag == 'N' ? "퇴직": item.deptName) + ") " + item.empNo + "</li>"
+        }
+    });
+    // Owner 세팅
+    
+
+    // Handler 검색
+    jQuery("#managers").tokenInput("ims/user/userListAjax.do?type=ALL", {
+        theme: "facebook",
+        queryParam:"searchText",
+        propertyToSearch: "name",
+        zindex: "99999",
+        preventDuplicates: true,
+        searchDelay: 300,
+        resultsFormatter: function(item){
+			return "<li>" + item[this.propertyToSearch]+  " (" + (item.useFlag == 'N' ? "퇴직": item.deptName) + ") " + item.empNo + "</li>"
+        }
+    });
+    // Handler 세팅
+    
+
+
+	var e = jQuery.Event( "keydown", { keyCode: 16 } );
+	jQuery("#token-input-registers").keyup(function () {
+		console.log("token-input-registers");
+		jQuery(this).trigger(e);
+	});
+
+	jQuery("#token-input-owners").keyup(function () {
+		console.log("token-input-owners");
+		jQuery(this).trigger(e);
+	});
+
+	jQuery("#token-input-managers").keyup(function () {
+		console.log("token-input-managers");
+		jQuery(this).trigger(e);
+	});
+});
+
+//페이지당 게시물 수 변경시
+function pageSizeChange(){
+	var pageSize = jQuery("#pageSize").val();
+	//쿠키에 저장
+	jQuery.cookie('pageSize', pageSize, { expires:365, path:'/'} );
+	goReportSearch(document.issueSearchForm, '1');
+}
+
+function fn_popSrchHelp() {
+	var vWin = window.open(context + '/html/ims/issueSearchHelp.html','SmallWindow','width=700,height=400,scrollbars=yes');
+	if (vWin == null && vWin.closed) vWin.focus();
+}
+
+function setExpectedVersion(systemCode, userId) {
+	var statusCombo = jQuery("#activities option:selected");
+	var prodCombo = jQuery("#productCodes option:selected");
+
+	if(prodCombo.length == 1 && statusCombo.length == 1){
+		if(statusCombo.val() == '8'){	// 8 : postpone
+			ProductDwr.findSearchMainVersions(prodCombo.val(), systemCode, userId, expectedVersion);
+			jQuery("#expectedVersionsTd1").show();
+			jQuery("#expectedVersionsTd2").show();
+		}else{
+			var expectedVersionsOption = jQuery("#expectedVersions option");
+			if(expectedVersionsOption.length > 0){
+				jQuery("#expectedVersions option").remove();
+				jQuery("#expectedVersionsTd1").hide();
+				jQuery("#expectedVersionsTd2").hide();
+			}
+		}
+	}else{
+		var expectedVersionsOption = jQuery("#expectedVersions option");
+		if(expectedVersionsOption.length > 0){
+			jQuery("#expectedVersions option").remove();
+			jQuery("#expectedVersionsTd1").hide();
+			jQuery("#expectedVersionsTd2").hide();
+		}
+	}
+}
+
+function expectedVersion(versions) {
+	var expectedVersionsCombo = $("expectedVersions");
+	DWRUtil.removeAllOptions(expectedVersionsCombo);
+	var version = null;
+	for (var i = 0, j = 0; i < versions.length; i++) {
+		version = versions[i];
+		expectedVersionsCombo.options[j++] = new Option(version.versionName,	version.versionCode, false, false);
+		if (versions[i].subVersions != null) {
+			var subVersion = null;
+			for (var k = 0; k < version.subVersions.length; k++) {
+				subVersion = version.subVersions[k];
+				expectedVersionsCombo.options[j++] = new Option("  - " + subVersion.versionName, subVersion.versionCode, false, false);
+			}
+		}
+	}
+}
+
+</script>
+</head>
+<body style="margin: 0; padding: 0;">
+<div style="margin: 0; padding: 0; width: 100%;" class="topMenuBottom">
+
+
+
+
+
+ 
+           
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+	.serchInput input {height: 25px;}
+	.serchInput button {height: 25px;}
+</style>
+<script type="text/javascript">
+
+var darkMode = true;
+var userTheme = localStorage.getItem('theme');
+
+jQuery(document).on("keydown", "#topIssueId", function(event){
+	//숫자만 입력받도록
+	var keyID = (event.which) ? event.which : event.keyCode;
+	if(
+			( keyID >=48 && keyID <= 57 ) ||
+			( keyID >=96 && keyID <= 105 ) ||
+			keyID == 8 || keyID == 13 ||
+			(event.ctrlKey && keyID == 86) ||
+			(event.metaKey && keyID == 86)) { // 8:Backspace, 13:Enter
+		if(keyID == 13){	//엔터키
+			var issueId = jQuery("#topIssueId").val();
+			if(issueId != ''){
+				checkIssueNum(issueId);
+			}
+		}
+	}else{
+		return false;
+	}
+});
+
+jQuery(document).on("click", ".searchButtonTop", function(){
+	checkIssueNum(jQuery("#topIssueId").val());
+});
+
+//이슈번호 체크
+function checkIssueNum(issueId){
+	issueId = issueId.trim();
+
+	jQuery.ajax({
+	    url : "ims/checkIssuesAjax.do",
+	    dataType: "json",
+	    type: "POST",
+	    data : {"issueId":issueId},
+	    success: function(data, textStatus, jqXHR) {
+	    	if(data.ISSUE == null){
+		    	jQuery("#errorMsg").text('Please check the issue number.');
+		    	return false;
+	    	}else{
+	    		jQuery("#errorMsg").text('');
+	    		//이슈상세조회
+				jQuery("#load").show();
+				location.href = context + "/ims/issue/issueView.do?issueId=" + issueId + "&menuCode=issue_search";
+				return true;
+	    	}
+	    },
+	    error: function (jqXHR, textStatus, errorThrown)  {
+	    	 var statusCd = "["+jqXHR.status+"][" + textStatus + "][" + errorThrown + "]";
+	    	 alert(statusCd);
+	    }
+	});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (userTheme === 'dark-mode') {
+        clickDarkMode();
+    } else if (userTheme === 'light-mode') {
+        clickLightMode();
+    }
+})
+
+
+function modeChage(){
+	  if (darkMode) {
+		  	clickDarkMode();
+	  } else {
+		   clickLightMode();
+	  }	
+}
+
+
+function clickDarkMode() {
+    localStorage.setItem("theme", "dark-mode");
+    document.body.dataset.theme = localStorage.getItem('theme');
+    jQuery("#modeChangeTxt").text('Light Mode');
+    darkMode = false;
+}
+function clickLightMode() {
+    localStorage.setItem("theme", "light-mode")
+    document.body.dataset.theme = localStorage.getItem('theme');
+    jQuery("#modeChangeTxt").text('Dark Mode');
+    darkMode = true;
+}
+
+
+</script> 
+<div class="topMenuPading">
+	<table class="fullWidth">
+		<colgroup>
+			<col width="130px">
+			<col width="80px">
+			<col width="500px">
+			<col width="*">
+	  	<col width="80px">
+		</colgroup>
+		<tbody><tr>
+			<td>
+				<a href="ims/main.do" tabindex="-1">
+					 <img src="images/common/top_logo4.png" class="imsTopLogo">
+					 <span class="imsTitle"> IMS</span>
+				</a>
+			</td>
+			<td class="paddingLeft5px">
+				<a href="javascript:;" onclick="modeChage();" class="btn-medium modeChageBtn" tabindex="-1">
+					<span id="modeChangeTxt">Dark Mode</span>
+				</a>								
+			</td>
+			<td>
+				
+					<table class="blak">
+						<colgroup>
+							<col width="90px">
+							<col width="*">
+							<col width="190px">
+						</colgroup>
+						<tbody><tr>
+							<td>
+								<span class="normalSizeFont">Issue Number</span>
+							</td>
+							<td>							
+								<span class="serchInput" style="width: 200px;display: table-cell;">
+			    				<input type="text" id="topIssueId" placeholder="Search" name="topIssueId" maxlength="20" tabindex="-1" style="">
+									<button class="searchButtonTop" tabindex="-1"></button>
+						  	</span>							
+							</td>
+							<td class="paddingLeft10px">
+								<span id="errorMsg" style="color:red" class="normalSizeFont"></span>
+							</td>
+						</tr>
+					</tbody></table>
+				
+			</td>
+			<td style="vertical-align: middle;">
+				<table class="text-right fullWidth">
+					<tbody><tr>
+						<td>
+							
+								<span class="topMenuUserInfo normalSizeFont">
+									<span>티맥스글로벌</span>
+									<span>Japan</span>
+									<span>Yijae Shin</span>
+									<span>TG03001</span>
+								</span>
+									
+							<img src="images/ims/icon_setting.png" class="iconImg" onclick="viewUserInfo();">
+							<a href="/tody/sso/ssoLogout.jsp" class="btn-medium btn-secondary" tabindex="-1">
+								<span class="text">Logout</span>
+							</a>
+						</td>
+					</tr>
+				</tbody></table>
+			</td>
+			<!-- Family site -->
+			<td class="text-right" style="padding-right: 10px">
+				<table>
+					<tbody><tr>
+						
+							
+								
+								
+									
+										<td class="paddingLeft5px">						
+											<a href="/tody/ims/main.do?currentSystem=ims" onfocus="this.blur();" class="btn-medium btn-secondary" tabindex="-1">
+												<span>IMS</span>
+											</a>
+										</td>
+									
+								
+							
+						
+					</tr>
+				</tbody></table>
+			</td>
+		</tr>
+	</tbody></table>
+</div>
+</div>
+<div style="margin: 0; padding: 0; width: 100%; min-height: 93%;">
+<table cellpadding="0" cellspacing="0" style="width: 100%; height: 100%; border: 0;">
+	<tbody><tr>
+		<td style="min-width: 220px; vertical-align: top;" class="bg-gradient-primary sidebar sidebar-dark accordion data">
+			
+
+
+
+
+ 
+           
+
+
+
+
+
+
+	
+		
+	
+
+
+<table border="0" cellpadding="0" cellspacing="0" style="margin: 0; padding: 0;" width="100%">
+	<tbody><tr>
+		<td width="100%" valign="top" style="padding-left: 2px;">
+		<table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin: 0; padding: 0;">
+
+	
+		
+			<tbody><tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_mypage2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/main.do?&amp;menuCode=issue_home" class="menu1" tabindex="-1">
+						My Page</a>
+					
+					
+				
+				
+			
+			
+				
+				
+					
+						
+					
+				
+					
+						
+					
+				
+					
+						
+					
+				
+					
+				
+					
+				
+					
+				
+					
+				
+					
+				
+				<a href="javascript:;" id="issue_homepmImg" isopen="Y" onclick="chgImage('issue_homepmImg'); chgVisible('issue_homeTR');">				
+					
+					
+					<span class="link1 spread verticalAlignMiddle">&nbsp;</span>
+				</a>
+			
+				</td>
+			</tr>
+			
+			<tr id="issue_homeTR" style="display:none;">
+				<td height="21" style="padding: 0 0 0 15px">
+				<table width="100%" border="0" cellspacing="0" cellpadding="0">
+				
+					
+					<tbody><tr>
+						<td height="22" style="text-align: left;" class="menu1">
+						
+						
+							-&nbsp;
+						
+						
+							
+								
+							<a href="ims/profile/mainConfigForm.do?&amp;menuCode=issue_home&amp;subMenuCode=issue_profile" style="vertical-align: middle" class="menu1" tabindex="-1">
+								Customize My Page</a>
+								
+								
+							
+							
+						
+						</td>
+					</tr>
+					<tr>
+						<td width="153" height="1" background="images/common/menu/leftsub_line_on.gif"></td>
+					</tr>
+					
+				
+					
+					<tr>
+						<td height="22" style="text-align: left;" class="menu1">
+						
+						
+							-&nbsp;
+						
+						
+							
+								
+							<a href="ims/profile/userFilterForm.do?&amp;menuCode=issue_home&amp;subMenuCode=issue_filter" style="vertical-align: middle" class="menu1" tabindex="-1">
+								Manage Filters</a>
+								
+								
+							
+							
+						
+						</td>
+					</tr>
+					<tr>
+						<td width="153" height="1" background="images/common/menu/leftsub_line_on.gif"></td>
+					</tr>
+					
+				
+					
+					<tr>
+						<td height="22" style="text-align: left;" class="menu1">
+						
+						
+							-&nbsp;
+						
+						
+							
+								
+							<a href="ims/issue/issueListChk.do?listType=6&amp;menuCode=issue_home&amp;subMenuCode=issue_list_chk" style="vertical-align: middle" class="menu1" tabindex="-1">
+								Set Up Issue Monitoring</a>
+								
+								
+							
+							
+						
+						</td>
+					</tr>
+					<tr>
+						<td width="153" height="1" background="images/common/menu/leftsub_line_on.gif"></td>
+					</tr>
+					
+				
+					
+				
+					
+				
+					
+				
+					
+				
+					
+				
+				</tbody></table></td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_issue_search2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/issue/issueSearchList2.do?&amp;menuCode=search_engine" class="menu1" tabindex="-1">
+						Search by Search Engine</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_issue_search2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/issue/issueSearchList.do?searchType=1&amp;menuCode=issue_search" class="menu1 active" tabindex="-1">
+						Search Issues</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_issue_search2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/patch/patchSearchList.do?&amp;menuCode=patch_search" class="menu1" tabindex="-1">
+						Search Files</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_issue_regist2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/issue/issueForm.do?&amp;menuCode=issue_regist" class="menu1" tabindex="-1">
+						Submit an Issue</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_issue_regist2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/issue/findIssueDraftList.do?&amp;menuCode=issue_draft" class="menu1" tabindex="-1">
+						Drafts</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_issue_list2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/issue/issueList.do?CRCheck=N&amp;listType=2&amp;menuCode=issue_list" class="menu1" tabindex="-1">
+						Issue List</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_issue_list2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/knowledge/knowledgeList.do?&amp;menuCode=issue_knoledge" class="menu1" tabindex="-1">
+						KSS Issues</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_manager2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/manager/managerList.do?&amp;menuCode=issue_manager" class="menu1" tabindex="-1">
+						Search Handlers</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_notice2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/board/boardList.do?systemCode=ims&amp;bbsCode=notice&amp;menuCode=issue_notice" class="menu1" tabindex="-1">
+						Announcements</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_manual2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+				
+					<span class="menu1">IMS Manual</span>
+				
+			
+			
+				
+				
+					
+				
+					
+				
+					
+				
+					
+						
+					
+				
+					
+						
+					
+				
+					
+				
+					
+				
+					
+				
+				<a href="javascript:;" id="ims_manualpmImg" isopen="Y" onclick="chgImage('ims_manualpmImg'); chgVisible('ims_manualTR');">				
+					
+					
+					<span class="link1 spread verticalAlignMiddle">&nbsp;</span>
+				</a>
+			
+				</td>
+			</tr>
+			
+			<tr id="ims_manualTR" style="display:none;">
+				<td height="21" style="padding: 0 0 0 15px">
+				<table width="100%" border="0" cellspacing="0" cellpadding="0">
+				
+					
+				
+					
+				
+					
+				
+					
+					<tbody><tr>
+						<td height="22" style="text-align: left;" class="menu1">
+						
+						
+							-&nbsp;
+						
+						
+							
+								
+								
+							<a href="/" onclick="menuPop('/tody/html/ims/kor_manual/index.html?'); return false;" style="vertical-align: middle" class="menu1" tabindex="-1">
+								IMS (Korean)</a>
+								
+							
+							
+						
+						</td>
+					</tr>
+					<tr>
+						<td width="153" height="1" background="images/common/menu/leftsub_line_on.gif"></td>
+					</tr>
+					
+				
+					
+					<tr>
+						<td height="22" style="text-align: left;" class="menu1">
+						
+						
+							-&nbsp;
+						
+						
+							
+								
+								
+							<a href="/" onclick="menuPop('/tody/html/ims/eng_manual/manualForm.jsp?'); return false;" style="vertical-align: middle" class="menu1" tabindex="-1">
+								IMS (English)</a>
+								
+							
+							
+						
+						</td>
+					</tr>
+					<tr>
+						<td width="153" height="1" background="images/common/menu/leftsub_line_on.gif"></td>
+					</tr>
+					
+				
+					
+				
+					
+				
+					
+				
+				</tbody></table></td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_manual2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/manual/manualList.do?&amp;menuCode=Manual" class="menu1" tabindex="-1">
+						Manuals</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_report2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+				
+					<span class="menu1">Issue Status Reports</span>
+				
+			
+			
+				
+				
+					
+				
+					
+				
+					
+				
+					
+				
+					
+				
+					
+						
+					
+				
+					
+						
+					
+				
+					
+						
+					
+				
+				<a href="javascript:;" id="status_reportpmImg" isopen="Y" onclick="chgImage('status_reportpmImg'); chgVisible('status_reportTR');">				
+					
+					
+					<span class="link1 spread verticalAlignMiddle">&nbsp;</span>
+				</a>
+			
+				</td>
+			</tr>
+			
+			<tr id="status_reportTR" style="display:none;">
+				<td height="21" style="padding: 0 0 0 15px">
+				<table width="100%" border="0" cellspacing="0" cellpadding="0">
+				
+					
+				
+					
+				
+					
+				
+					
+				
+					
+				
+					
+					<tbody><tr>
+						<td height="22" style="text-align: left;" class="menu1">
+						
+						
+							-&nbsp;
+						
+						
+							
+								
+							<a href="ims/issue/dealDaysList.do?&amp;menuCode=status_report&amp;subMenuCode=deal_days" style="vertical-align: middle" class="menu1" tabindex="-1">
+								Processing Time by Category</a>
+								
+								
+							
+							
+						
+						</td>
+					</tr>
+					<tr>
+						<td width="153" height="1" background="images/common/menu/leftsub_line_on.gif"></td>
+					</tr>
+					
+				
+					
+					<tr>
+						<td height="22" style="text-align: left;" class="menu1">
+						
+						
+							-&nbsp;
+						
+						
+							
+								
+							<a href="ims/issue/issueByCategoryList.do?&amp;menuCode=status_report&amp;subMenuCode=report_bycategory" style="vertical-align: middle" class="menu1" tabindex="-1">
+								Processing Status by Category</a>
+								
+								
+							
+							
+						
+						</td>
+					</tr>
+					<tr>
+						<td width="153" height="1" background="images/common/menu/leftsub_line_on.gif"></td>
+					</tr>
+					
+				
+					
+					<tr>
+						<td height="22" style="text-align: left;" class="menu1">
+						
+						
+							-&nbsp;
+						
+						
+							
+								
+							<a href="ims/issue/issueCmpReport.do?reportType=R001&amp;menuCode=status_report&amp;subMenuCode=issue_report_01" style="vertical-align: middle" class="menu1" tabindex="-1">
+								Processing Rate by Category</a>
+								
+								
+							
+							
+						
+						</td>
+					</tr>
+					<tr>
+						<td width="153" height="1" background="images/common/menu/leftsub_line_on.gif"></td>
+					</tr>
+					
+				
+				</tbody></table></td>
+			</tr>
+			
+		
+	
+		
+			<tr>
+				<td height="21" style="padding: 0 0 0 5px; width: 197px;" class="bg-gradient-primary sidebar sidebar-dark accordion">
+					<img src="images/common/menu/ims_issue_list2.png" style="vertical-align: middle;" class="leftMenuIcon" tabindex="-1">
+			
+				
+					
+					<a href="ims/issue/searchSchedule.do?&amp;menuCode=search_schedule" class="menu1" tabindex="-1">
+						Search Issues by Calendar</a>
+					
+					
+				
+				
+			
+			
+				</td>
+			</tr>
+			
+		
+	
+
+	
+
+
+		</tbody></table></td>
+	</tr>
+</tbody></table>
+		</td>
+		<td style="vertical-align: top;" class="leftMenuBorder">
+			<div id="load" style="display: none;">
+				<img src="images/ims/loading.gif" alt="loading">
+			</div>
+			<form id="issueSearchForm" name="issueSearchForm" class="variable_width" method="get" action="ims/issue/issueSearchList.do" style="margin: 0px; padding: 0px; width: 1060px;">
+<input type="hidden" id="reSearchYN" name="reSearchYN" value="Y" style="">
+<input type="hidden" id="searchType" name="searchType" value="1" style="">
+<input type="hidden" id="pageIndex" name="pageIndex" value="1" style="">
+<input type="hidden" id="hintMsg" name="hintMsg" value="" style="">
+<input type="hidden" id="clickColumn" name="clickColumn" value="" style="">
+<input type="hidden" id="orderType" name="orderType" value="desc" style="">
+<input type="hidden" id="menuCode" name="menuCode" value="issue_search" style="">
+<input type="hidden" name="paramProdCodes" id="paramProdCodes" value="" style="">
+<input type="hidden" name="menuLink" id="menuLink" value="/ims/issue/issueSearchList.do" style="">
+<input type="hidden" name="reportType" id="reportType" value="R101" style="">
+<input type="hidden" name="reportLink" id="reportLink" value="/util/saveSearchList.do" style="">
+<input type="hidden" name="queryId" id="queryId" value="ims.issueSearch.findIssueSearch" style="">
+<input type="hidden" name="queryIdDetail" id="queryIdDetail" value="ims.profile.findUserIssueColumns" style="">
+<input type="hidden" name="moveSearchAction" id="moveSearchAction" value="ims/issue/issueSearchList.do" style="">
+<input type="hidden" name="userGrade" id="userGrade" value="TMAX" style="">
+<input type="hidden" name="userName" id="userName" value="Yijae Shin" style="">
+<input type="hidden" name="userId" id="userId" value="yijae.shin" style="">
+
+<!--/* 타이틀바 */-->
+<table class="menuTitleTable">
+  <tbody><tr>
+		<td class="help">
+			<img src="images/common/menu/ims_issue_search2.png" onclick="fn_popSrchHelp();">
+		</td>  
+    <td class="title menuTitle">
+      <span>Search Issues</span>
+    </td>
+  </tr>
+</tbody></table>
+<!--/* 조회 조건 */-->
+<div class="DataDivPadding">
+	<div id="TBCondition" class="searchArea">
+		<table width="100%" cellspacing="0" cellpadding="0">
+			<tbody><tr>
+				<td height="22">
+					<table width="100%" height="22" cellpadding="0" cellspacing="0">
+						<tbody><tr>
+							<td class="title6" onclick="setDisplay3(this, 'SearchDiv');">
+								
+								
+									
+								
+								<span class="link1 spread"></span>
+								<span>Search Conditions</span>
+							</td>						
+						</tr>
+					</tbody></table>
+				</td>
+			</tr>
+		</tbody></table>
+	<div id="SearchDiv" style="clear: both; display: none;">
+		<table width="100%" cellspacing="0" cellpadding="0">
+			<tbody><tr>
+				<td valign="top">
+				<table width="100%" style="border-width: 0px 1px 0px 1px;border-style: solid;" class="borderBlackLeftRight">
+					<colgroup>
+           	<col width="25%">
+           	<col width="25%">
+           	<col width="25%">
+           	<col width="25%">
+          </colgroup>
+					<tbody><tr class="multipleSelectBoxHeaderTr paddingTop3pxTr">
+						<td>
+							<table width="100%">
+								<colgroup>
+	               	<col width="10%">
+	               	<col width="*">
+	             	</colgroup>
+								<tbody><tr>
+									<td class="title paddingLeft3px">[Product]</td>
+									<td class="title refreshTd">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearSearchProdComboBox();">
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+						<td>
+							<table width="100%">
+								<colgroup>
+	               	<col width="10%">
+	               	<col width="*">
+	             	</colgroup>
+								<tbody><tr>
+									<td class="title">[Module]</td>
+									<td class="title refreshTd">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('modules');">
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+						<td>
+							<table width="100%">
+								<colgroup>
+		              <col width="10%">
+		              <col width="*">
+		            </colgroup>			
+								<tbody><tr>
+									<td class="title">[Version]</td>
+									<td class="title refreshTd">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('versions');">
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+						<td>
+							<table width="100%">
+								<colgroup>
+		              <col width="33%">
+		              <col width="*">
+		            </colgroup>
+								<tbody><tr>
+									<td class="title">[Patch Version]</td>
+									<td class="title" style="padding-right: 3px;">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('patchVersions');" style="cursor: pointer;">
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+					</tr>
+					<tr class="multipleSelectBoxTr">
+						<td>
+							<select class="data" multiple="true" name="productCodes" id="productCodes" onchange="setProductCondition(this.value, 'ims', 'yijae.shin', 'issueSearch');" onclick="setExpectedVersion('ims', 'yijae.shin');">
+								
+									<option value="032">AnyAPI(API GW)</option>
+								
+									<option value="044">AnyEIMS</option>
+								
+									<option value="052">AnyLink</option>
+								
+									<option value="051">AnyLink Over ProBus</option>
+								
+									<option value="050">AnyLink Over Tmax</option>
+								
+									<option value="079">AnyMiner</option>
+								
+									<option value="047">AnySim</option>
+								
+									<option value="091">BizMaster Over Probus</option>
+								
+									<option value="026">C++ FRAMEWORK</option>
+								
+									<option value="152">CLAS</option>
+								
+									<option value="037">CustomGW</option>
+								
+									<option value="154">D-Works</option>
+								
+									<option value="313">GAIA</option>
+								
+									<option value="038">GAIA BX</option>
+								
+									<option value="039">GAIA PX</option>
+								
+									<option value="315">Gaia Docs</option>
+								
+									<option value="314">Gaia Office</option>
+								
+									<option value="104">HyperCloud</option>
+								
+									<option value="083">HyperData</option>
+								
+									<option value="022">InfiniCache</option>
+								
+									<option value="076">InfiniLink</option>
+								
+									<option value="020">JEUS</option>
+								
+									<option value="082">K-DB</option>
+								
+									<option value="128" selected="">OpenFrame AIM</option>
+								
+									<option value="520" selected="">OpenFrame ASM</option>
+								
+									<option value="129" selected="">OpenFrame Base</option>
+								
+									<option value="123" selected="">OpenFrame Batch</option>
+								
+									<option value="500" selected="">OpenFrame COBOL</option>
+								
+									<option value="137" selected="">OpenFrame Common</option>
+								
+									<option value="141" selected="">OpenFrame GW</option>
+								
+									<option value="126" selected="">OpenFrame HiDB</option>
+								
+									<option value="147" selected="">OpenFrame ISPF</option>
+								
+									<option value="145" selected="">OpenFrame Manager</option>
+								
+									<option value="135" selected="">OpenFrame Map GUI Editor</option>
+								
+									<option value="143" selected="">OpenFrame Miner</option>
+								
+									<option value="138" selected="">OpenFrame OSC</option>
+								
+									<option value="134" selected="">OpenFrame OSI</option>
+								
+									<option value="142" selected="">OpenFrame OpenStudio Web</option>
+								
+									<option value="510" selected="">OpenFrame PLI</option>
+								
+									<option value="127" selected="">OpenFrame Studio</option>
+								
+									<option value="124" selected="">OpenFrame TACF</option>
+								
+									<option value="151">OwlDB</option>
+								
+									<option value="200">ProBus</option>
+								
+									<option value="240">ProFactory</option>
+								
+									<option value="110">ProFrame C</option>
+								
+									<option value="180">ProFrame Java</option>
+								
+									<option value="320">ProIFRS/V C++</option>
+								
+									<option value="330">ProIFRS/V Java</option>
+								
+									<option value="622">ProJDK</option>
+								
+									<option value="270">ProJobs</option>
+								
+									<option value="460">ProNet</option>
+								
+									<option value="025">ProObject 21</option>
+								
+									<option value="077">ProObject 3</option>
+								
+									<option value="085">ProObject Framework</option>
+								
+									<option value="087">ProObject Runtime</option>
+								
+									<option value="130">ProRule</option>
+								
+									<option value="310">ProSearch</option>
+								
+									<option value="640">ProSort</option>
+								
+									<option value="430">ProSync</option>
+								
+									<option value="431">ProSync Manager</option>
+								
+									<option value="425">ProTrieve</option>
+								
+									<option value="146">ProZone</option>
+								
+									<option value="153">SuperApp WAPL</option>
+								
+									<option value="035">SuperAppGW</option>
+								
+									<option value="036">SuperAppServer</option>
+								
+									<option value="023">SuperFrame</option>
+								
+									<option value="316">SuperOS</option>
+								
+									<option value="312">SuperRDS</option>
+								
+									<option value="053">SuperSpring</option>
+								
+									<option value="100">SysMaster</option>
+								
+									<option value="081">SysMaster DB</option>
+								
+									<option value="105">T-up OpenFrame Common</option>
+								
+									<option value="119">T-up OpenFrame DataSet Manager</option>
+								
+									<option value="107">T-up OpenFrame Migrator</option>
+								
+									<option value="106">T-up OpenFrame Miner</option>
+								
+									<option value="108">T-up OpenFrame Runtime</option>
+								
+									<option value="033">TCP IaaS</option>
+								
+									<option value="045">TCP PaaS</option>
+								
+									<option value="530">TOP</option>
+								
+									<option value="070">Tibero</option>
+								
+									<option value="084">TiberoStudio</option>
+								
+									<option value="010">Tmax</option>
+								
+									<option value="054">Tmax BA</option>
+								
+									<option value="614">Tmax OS</option>
+								
+									<option value="615">Tmax Office</option>
+								
+									<option value="061">Tmax OpenSQL for PostgreSQL</option>
+								
+									<option value="115">TmaxGPMS</option>
+								
+									<option value="280">TmaxRQS</option>
+								
+									<option value="117">Tmax구름</option>
+								
+									<option value="116">Tmax구름 SD</option>
+								
+									<option value="030">WebtoB</option>
+								
+									<option value="034">WebtoB6(C++)</option>
+								
+									<option value="078">ZetaData</option>
+								
+							</select>
+						</td>
+						<td>
+							<select class="data" name="modules" id="modules" multiple="true">
+								
+							</select></td>
+						<td>
+							<select class="data" name="versions" id="versions" multiple="true">
+								
+							</select>
+						</td>
+						<td class="paddingRight6px">
+							<select class="data" name="patchVersions" id="patchVersions" multiple="true">
+								
+							</select>
+						</td>
+					</tr>
+				</tbody></table>
+				<table width="100%" style="padding: 5px; border-width: 0px 1px 0px 1px;border-style: solid;" class="borderBlackLeftRight">
+					<tbody><tr class="multipleSelectBoxHeaderTr">
+						<td width="25%">
+							<table width="100%">
+								<colgroup>
+			            <col width="10%">
+			          	<col width="*">
+			          </colgroup>
+								<tbody><tr>
+									<td class="title paddingLeft3px">[Category]</td>
+									<td class="title refreshTd">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('categoryCodes');" style="cursor: pointer;">
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+						<td width="25%">
+							<table width="100%">
+								<colgroup>
+				          <col width="10%">
+				         	<col width="*">
+				        </colgroup>
+								<tbody><tr>
+									<td class="title">[Status]</td>
+									<td class="title refreshTd">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('activities');" style="cursor: pointer;">									
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+						<td width="25%" style="display:none;" id="expectedVersionsTd1" name="expectedVersionsTd1">
+							<table width="100%">
+								<colgroup>
+					        <col width="10%">
+					       	<col width="*">
+					      </colgroup>
+								<tbody><tr>
+									<td class="title">[Expected Version]</td>
+									<td class="title refreshTd">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('expectedVersions');" style="cursor: pointer;">
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+						<td width="25%">
+							<table width="100%">
+								<colgroup>
+					        <col width="10%">
+					       	<col width="*">
+					      </colgroup>						
+								<tbody><tr>
+									<td class="title">[Priority]</td>
+									<td class="title refreshTd">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('priorities');" style="cursor: pointer;">
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+						<td width="25%">
+							<table width="100%">
+								<colgroup>
+						      <col width="10%">
+						     	<col width="*">
+						    </colgroup>
+								<tbody><tr>
+									<td class="title">[Severity]</td>
+									<td class="title refreshTd">
+										<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('severities');" style="cursor: pointer;">
+									</td>
+								</tr>
+							</tbody></table>
+						</td>
+					</tr>
+					<tr class="multipleSelectBoxTr">
+						<td>
+							<select class="data" name="categoryCodes" id="categoryCodes" multiple="true" size="5">
+								
+									<option value="improve">Change Request</option>
+								
+									<option value="addition">Enhancement Request</option>
+								
+									<option value="inquiry">Technical Support</option>
+								
+									<option value="defect">Defect</option>
+								
+									<option value="request">Binary Request</option>
+								
+									<option value="patchFail">Patch Fail</option>
+								
+									<option value="manual">Manual</option>
+								
+						</select></td>
+						<td>
+							<select class="data" name="activities" id="activities" multiple="true" size="5" onchange="setExpectedVersion('ims', 'yijae.shin');">
+								
+									<option value="1">New</option>
+								
+									<option value="2">Open</option>
+								
+									<option value="3">Assigned</option>
+								
+									<option value="49">└  QA analysis in progress</option>
+								
+									<option value="50">└  QA assigned (test)</option>
+								
+									<option value="51">└  QA test in progress</option>
+								
+									<option value="52">└  QA assigned (request)</option>
+								
+									<option value="53">└  R&amp;D assigned (analysis)</option>
+								
+									<option value="54">└  R&amp;D analysis in progress</option>
+								
+									<option value="55">└  R&amp;D development in progress</option>
+								
+									<option value="56">└  R&amp;D patch in progress</option>
+								
+									<option value="58">└  R&amp;D assigned (request)</option>
+								
+									<option value="57">└  PS assigned (request)</option>
+								
+									<option value="4">Resolved</option>
+								
+									<option value="5">Closed</option>
+								
+									<option value="6">Reopened</option>
+								
+									<option value="7">Rejected</option>
+								
+									<option value="8">Postponed</option>
+								
+									<option value="9">Prevented</option>
+								
+									<option value="28">Approved</option>
+								
+									<option value="29">Closed_P</option>
+								
+							</select>
+						</td>
+						<td style="display:none;" id="expectedVersionsTd2" name="expectedVersionsTd2">
+							<select class="data" name="expectedVersions" id="expectedVersions" multiple="true" size="5">
+								
+							</select>
+						</td>
+						<td>
+							<select class="data" multiple="true" name="priorities" id="priorities" size="5">
+								
+									<option value="PR03">Normal</option>
+								
+									<option value="PR01">Very high</option>
+								
+									<option value="PR02">High</option>
+								
+									<option value="PR04">Low</option>
+								
+									<option value="PR05">Very low</option>
+								
+							</select>
+						</td>
+						<td class="paddingRight6px">
+							<select class="data" multiple="true" name="severities" id="severities" size="5">
+								
+									<option value="NONE">N/A</option>
+								
+									<option value="SV01">Critical</option>
+								
+									<option value="SV02">Major</option>
+								
+									<option value="SV03">Minor</option>
+								
+									<option value="SV04">General</option>
+								
+							</select>
+						</td>
+					</tr>
+				</tbody></table>
+				<table id="etcConditionTable" style="width: 100%;" class="borderBlackLeftRight">
+					<tbody><tr>
+						<td valign="top">
+							<div id="subSearchDiv">
+								<table id="TBCondition" width="100%" class="title">
+									<colgroup>
+				           	<col width="25%">
+				           	<col width="25%">
+				           	<col width="25%">
+				           	<col width="25%">
+				          </colgroup>
+									<tbody><tr class="multipleSelectBoxHeaderTr">
+										<td>
+											<table width="100%">									
+												<colgroup>
+										      <col width="46%">
+										     	<col width="*">
+										    </colgroup>
+												<tbody><tr>
+													<td class="title paddingLeft3px">[Reason for rejection]</td>
+													<td class="title">
+														<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('resolutions');" style="cursor: pointer;">
+													</td>
+												</tr>
+											</tbody></table>
+										</td>
+										<td>
+											<table width="100%">
+												<colgroup>
+											    <col width="30%">
+											   	<col width="*">
+											  </colgroup>
+												<tbody><tr>
+													<td class="title">[Defect Type]</td>
+													<td class="title">
+														<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('defects');" style="cursor: pointer;">
+													</td>
+												</tr>
+											</tbody></table>
+										</td>
+										<td>
+											<table width="100%">
+												<colgroup>
+												  <col width="32%">
+												 	<col width="*">
+												</colgroup>						
+												<tbody><tr>
+													<td class="title">[Defect cause]</td>
+													<td class="title refreshTd">
+														<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('defReasons');" style="cursor: pointer;">
+													</td>
+												</tr>
+											</tbody></table>
+										</td>
+										<td>
+											<table width="100%">
+												<colgroup>
+												  <col width="30%">
+												 	<col width="*">
+												</colgroup>
+												<tbody><tr>
+													<td class="title">[Inquiry Type]</td>
+													<td class="title">
+														<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('inquiries');" style="cursor: pointer;">
+													</td>
+												</tr>
+											</tbody></table>
+										</td>
+									</tr>
+									<tr class="multipleSelectBoxTr"> 
+										<td>
+											<select class="data" multiple="true" name="resolutions" id="resolutions" size="5">
+												
+													<option value="RT11">User Error</option>
+												
+													<option value="RT12">Configuration Error</option>
+												
+													<option value="RT13">Not a Bug</option>
+												
+													<option value="RT21">External System Fault</option>
+												
+													<option value="RT91">Duplicated Issue</option>
+												
+													<option value="RT92">N/A</option>
+												
+													<option value="RT93">Cannot be reproduced</option>
+												
+													<option value="RT94">Patch on the next version</option>
+												
+													<option value="RT95">Other</option>
+												
+											</select>
+										</td>
+										<td>
+											<select class="data" name="defects" id="defects" multiple="true" size="5">
+												
+													<option value="DS11">Faulty Run</option>
+												
+													<option value="DS12">Message Error</option>
+												
+													<option value="DS13">Operational Failure</option>
+												
+													<option value="DS21">System outage</option>
+												
+													<option value="DS22">Third Party Issues</option>
+												
+													<option value="DS23">Performance issues</option>
+												
+													<option value="DS90">Others</option>
+												
+													<option value="DS24">Manual Issues</option>
+												
+											</select>
+										</td>
+										<td>
+											<select class="data" multiple="true" name="defReasons" id="defReasons" size="5">
+												
+													<option value="DC11">Product specification and policy issues</option>
+												
+													<option value="DC21">Documentation errors</option>
+												
+													<option value="DC22">Defect in requirement analysis</option>
+												
+													<option value="DC23">Design error</option>
+												
+													<option value="DC24">Code error</option>
+												
+													<option value="DC31">Data error</option>
+												
+													<option value="DC32">Compatibility error</option>
+												
+													<option value="DC33">Derived error</option>
+												
+													<option value="DC34">Configuration error</option>
+												
+													<option value="DC35">Next version patched error</option>
+												
+													<option value="DC91">Unknown error</option>
+												
+											</select>
+										</td>
+										<td class="paddingRight5px">
+											<select class="data" multiple="true" name="inquiries" id="inquiries" size="5">
+												
+													<option value="CT21">Analysis request</option>
+												
+													<option value="CT22">Basic Inquiry</option>
+												
+													<option value="CT23">Request a trial version</option>
+												
+													<option value="CT31">Core product range inquiry</option>
+												
+													<option value="CT32">General question</option>
+												
+													<option value="CT33">Management issues</option>
+												
+											</select>
+										</td>
+									</tr>
+									<tr class="multipleSelectBoxHeaderTr">
+										<td>
+											<table width="100%">
+												<colgroup>
+												  <col width="46%">
+												 	<col width="*">
+												</colgroup>
+												<tbody><tr>
+													<td class="title paddingLeft3px">[Prevention Measure]</td>
+													<td class="title">
+														<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('preventions');" style="cursor: pointer;">
+													</td>
+												</tr>
+											</tbody></table>
+										</td>
+										<td>
+											<table width="100%">
+												<colgroup>
+												  <col width="40%">
+												 	<col width="*">
+												</colgroup>
+												<tbody><tr>
+													<td class="title">[Close_P Measure]</td>
+													<td class="title">
+														<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('closePs');" style="cursor: pointer;">
+													</td>
+												</tr>
+											</tbody></table>
+										</td>
+										<td>
+											<table width="100%">
+												<colgroup>
+												  <col width="45%">
+												 	<col width="*">
+												</colgroup>
+												<tbody><tr>
+													<td class="title">[Inclusion in CoreSet]</td>
+													<td class="title">
+														<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('coreSetApplyCode');" style="cursor: pointer;">
+													</td>
+												</tr>
+											</tbody></table>
+										</td>
+										<td>
+											
+												<table width="100%">
+													<colgroup>
+													  <col width="55%">
+													 	<col width="*">
+													</colgroup>
+													<tbody><tr>
+														<td class="title">[Handling type for defect]</td>
+														<td class="title">
+															<img src="images/ims/refresh_icon.png" width="15" height="15" onclick="clearMutipleComboBox('deals');" style="cursor: pointer;">
+														</td>
+													</tr>
+												</tbody></table>
+											
+										</td>
+									</tr>
+									<tr class="multipleSelectBoxTr">
+										<td>
+											<select class="data" multiple="true" name="preventions" id="preventions" size="5">
+												
+													<option value="PV11">FAQ</option>
+												
+													<option value="PV12">Manual</option>
+												
+													<option value="PV13">Sample</option>
+												
+													<option value="PV14">Training</option>
+												
+													<option value="PV15">Unnecessary</option>
+												
+													<option value="PV16">TMS</option>
+												
+											</select>
+										</td>
+										<td>
+											<select class="data" multiple="true" name="closePs" id="closePs" size="5">
+												
+													<option value="CP11">Recurrence prevention</option>
+												
+													<option value="CP12">Not reproducible</option>
+												
+													<option value="CP13">Patch conflict resolved</option>
+												
+													<option value="CP14">No patch created</option>
+												
+													<option value="CP15">Fix in next release</option>
+												
+											</select>
+										</td>
+										<td>
+											<select class="data" id="coreSetApplyCode" name="coreSetApplyCode" multiple="true" size="5">
+												
+													
+													
+														<option value="Y">Included</option>
+													
+												
+													
+													
+														<option value="N">Not included</option>
+													
+												
+													
+													
+														<option value="C">Modified</option>
+													
+												
+											</select>									
+										</td>
+										<td class="paddingRight5px">
+											
+												<select class="data" name="deals" id="deals" multiple="true" size="5">										
+													
+														<option value="CD11">Site test</option>
+													
+														<option value="CD12">QA test</option>
+													
+												</select>
+											
+										</td>
+									</tr>
+								</tbody></table>
+							</div>
+						</td>
+					</tr>
+				</tbody></table>
+				<table width="100%" class="borderBlackExceptTop">
+				  <colgroup>
+           	<col width="50.1%">
+           	<col width="*">
+				  </colgroup>
+				  <tbody><tr>
+				    <td>
+				      <div class="etcSearchTableDiv">
+				        <table class="borderBlack etcSearchTable" style="min-height: 314px;">
+				          
+				          <tbody><tr>
+				            <td class="title">
+				              <span>CoreSet</span>
+				            </td>
+				            <td>
+	                   <select id="coreSet" name="coreSet" class="imsSelectBox">
+	                     <option value="">-- select --</option>
+	                     <option value="Y">Y</option>
+	                     <option value="N">N</option>
+	                     <option value="NULL">NULL</option>
+	                   </select>
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">
+				              <span>FixSet</span>
+				            </td>
+				            <td>
+	                    <select id="fixSet" name="fixSet" class="imsSelectBox">
+	                      <option value="">-- select --</option>
+	                      
+	                        <option value="FS00">FS00</option>
+	                      
+	                        <option value="FS01">FS01</option>
+	                      
+	                        <option value="FS02">FS02</option>
+	                      
+	                        <option value="FS03">FS03</option>
+	                      
+	                        <option value="FS04">FS04</option>
+	                      
+	                        <option value="FS05">FS05</option>
+	                      
+	                        <option value="FS06">FS06</option>
+	                      
+	                        <option value="FS07">FS07</option>
+	                      
+	                        <option value="FS08">FS08</option>
+	                      
+	                        <option value="FS09">FS09</option>
+	                      
+	                        <option value="FS10">FS10</option>
+	                      
+	                    </select>
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">
+				              <span>Patch Verif YN</span>
+				            </td>
+				            <td>
+	                    <select id="patchVeri" name="patchVeri" class="imsSelectBox">
+	                      <option value="">-- select --</option>
+	                      <option value="Y">Y</option>
+	                      <option value="N">N</option>
+	                    </select>
+				            </td>
+				          </tr>
+				          <tr valign="middle">
+				            <td class="title">Registered date filter</td>
+				            <td>
+	                   <input type="text" name="regStartDate" id="regStartDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                   <img src="images/common/calendar.png" class="calendarImage" id="regStartDateImg" onclick="fn_setDatepicker(this)">
+	                   ~ 
+	                   <input type="text" name="regEndDate" id="regEndDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                   <img src="images/common/calendar.png" class="calendarImage" id="regEndDateImg" onclick="fn_setDatepicker(this)">
+				            </td>
+				          </tr>
+				          
+				          <tr>
+				            <td class="title">Modified date filter</td>
+				            <td>
+	                    <input type="text" name="modStartDate" id="modStartDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style=""> 
+	                    <img src="images/common/calendar.png" class="calendarImage" id="modStartDateImg" onclick="fn_setDatepicker(this)">
+	                    ~ 
+	                    <input type="text" name="modEndDate" id="modEndDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                    <img src="images/common/calendar.png" class="calendarImage" id="modEndDateImg" onclick="fn_setDatepicker(this)">
+				            </td>
+				          </tr>
+				          
+				          <tr>
+				            <td class="title">Closed date filter</td>
+				            <td>
+	                    <input type="text" name="closedStartDate" id="closedStartDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                    <img src="images/common/calendar.png" class="calendarImage" id="closedStartDateImg" onclick="fn_setDatepicker(this)">
+	                    ~ 
+	                    <input type="text" name="closedEndDate" id="closedEndDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                    <img src="images/common/calendar.png" class="calendarImage" id="closedEndDateImg" onclick="fn_setDatepicker(this)">
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Expected Date(R&amp;D)</td>
+				            <td>
+	                   <input type="text" name="rndPatchStartDate" id="rndPatchStartDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style=""> 
+	                   <img src="images/common/calendar.png" class="calendarImage" id="rndPatchStartDateImg" onclick="fn_setDatepicker(this)">
+	                   ~ 
+	                   <input type="text" name="rndPatchEndDate" id="rndPatchEndDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                   <img src="images/common/calendar.png" class="calendarImage" id="rndPatchEndDateImg" onclick="fn_setDatepicker(this)">
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Expected Date(QA)</td>
+				            <td>
+	                   <input type="text" name="qaTestEndStartDate" id="qaTestEndStartDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                   <img src="images/common/calendar.png" class="calendarImage" id="qaTestEndStartDateImg" onclick="fn_setDatepicker(this)">
+	                   ~ 
+	                   <input type="text" name="qaTestEndEndDate" id="qaTestEndEndDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                   <img src="images/common/calendar.png" class="calendarImage" id="qaTestEndEndDateImg" onclick="fn_setDatepicker(this)">
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Expected Date(PS)</td>
+				            <td>
+	                    <input type="text" name="siteApplyStartDate" id="siteApplyStartDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                    <img src="images/common/calendar.png" class="calendarImage" id="siteApplyStartDateImg" onclick="fn_setDatepicker(this)">
+	                    ~ 
+	                    <input type="text" name="siteApplyEndDate" id="siteApplyEndDate" value="" size="10" maxlength="10" autocomplete="off" class="width70px" style="">
+	                    <img src="images/common/calendar.png" class="calendarImage" id="siteApplyEndDateImg" onclick="fn_setDatepicker(this)">				                    
+				            </td>
+				          </tr>
+				          
+				            <tr>
+				              <td class="title">QA comment</td>
+				              <td>
+				                <input name="qaComment" id="qaComment" type="text" value="" class="qaCommentWidth" style="">
+				              </td>
+				            </tr>
+				          
+				          
+				        </tbody></table>
+				      </div>
+				    </td>
+				    <td>
+				      <div class="etcInputSelSearchTableDiv">
+				        <table class="borderBlack etcInputSelSearchTable" style="min-height: 314px;">
+				          <tbody><tr>
+				            <td class="title">List type</td>
+				            <td class="data">
+				              <select name="listType" id="listType" class="width290px">
+				                <option value="1" selected="">All issues</option>
+				                <option value="2">Issues by assigned product</option>
+				                <option value="8">Issues by assigned module</option>
+				                <option value="9">Issues by project</option>
+				                <option value="3">Assigned issues to me</option>
+				                <option value="4">Issues registered by me</option>
+				                <option value="5">Issues reqistered by my team</option>
+				                <option value="7">Issue History</option>
+				                <option value="10">Issues to be approved by me</option>
+				                <option value="11">Urgent issues</option>
+				              </select>
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Prefix</td>
+				            <td class="data">
+				              <select id="prefix" name="prefix" class="width290px">
+				                <option value="">--- Select ---</option>
+				                
+				              </select>
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Keyword</td>
+				            <td class="data">
+				              <input type="text" name="keyword" id="keyword" value="347863" class="width290px" style="">
+				              <a href="javascript:;" onclick="fn_popKeywordHelp();" class="btn-medium btn-primary btn-user btn-block" tabindex="-1">Search Guide</a>
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Tagging word</td>
+				            <td class="data">
+				              <select id="taggingWordOption" name="taggingWordOption">
+				                <option value="equals" selected="">equals</option>
+				                <option value="like">like</option>
+								<option value="notlike">not like</option>
+				              </select>
+				              <input type="text" name="taggingWord" id="taggingWord" value="" style="width: 227px;" maxlength="30"> separated by commas
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Issue Number</td>
+				            <td class="data">
+				              <input type="text" name="issueId" id="issueId" class="width290px" value="" onblur="fn_checkNumList(this.id, 'Issue');" style=""> separated by space
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Bug Number</td>
+				            <td class="data">
+				              <input type="text" name="bugNo" id="bugNo" class="width290px" value="" onblur="fn_checkNumList(this.id, 'Bug');" style=""> separated by space
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Reporter</td>
+				            <td class="data">
+				              <ul class="token-input-list-facebook"><li class="token-input-input-token-facebook"><input type="text" autocomplete="off" id="token-input-registers" style="outline: none;"><tester style="position: absolute; top: -9999px; left: -9999px; width: auto; font-size: 12px; font-family: Arial; font-weight: 400; letter-spacing: 0px; white-space: nowrap;"></tester></li></ul><input type="text" id="registers" name="registers" class="input" style="width: 90px; display: none;">
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Owner</td>
+				            <td class="data">
+				              <ul class="token-input-list-facebook"><li class="token-input-input-token-facebook"><input type="text" autocomplete="off" id="token-input-owners" style="outline: none;"><tester style="position: absolute; top: -9999px; left: -9999px; width: auto; font-size: 12px; font-family: Arial; font-weight: 400; letter-spacing: 0px; white-space: nowrap;"></tester></li></ul><input type="text" id="owners" name="owners" class="input" style="width: 90px; display: none;">
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Handler</td>
+				            <td class="data">
+				              <ul class="token-input-list-facebook"><li class="token-input-input-token-facebook"><input type="text" autocomplete="off" id="token-input-managers" style="outline: none;"><tester style="position: absolute; top: -9999px; left: -9999px; width: auto; font-size: 12px; font-family: Arial; font-weight: 400; letter-spacing: 0px; white-space: nowrap;"></tester></li></ul><input type="text" id="managers" name="managers" class="input" style="width: 90px; display: none;">
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Project</td>
+				            <td class="data">
+				              <input name="projectName" id="projectName" type="text" class="width290px" value="" onclick="alert('Click search button on right side.');" readonly="" style=""> &nbsp;/&nbsp; 
+				              <input name="site" id="site" type="text" value="" onclick="alert('Click search button on right side.');" style="width: 80px;" readonly="true">
+				              <input name="projectCode" id="projectCode" type="hidden" value="" style="">
+				              <img src="images/common/menu/ims_issue_search2.png" width="17" height="16" align="absmiddle" onclick="setProject(document.popupProjectListForm, document.issueSearchForm.projectName);" style="cursor: pointer;">
+				              <img src="images/ims/icon_del.png" width="16" height="14" align="absmiddle" onclick="projectName.value='';projectCode.value='';site.value='';" alt="Erase" style="cursor: pointer;">
+				            </td>
+				          </tr>
+				          <tr>
+				            <td class="title">Customer</td>
+				            <td class="data" style="padding-top: 8px;padding-bottom: 3px;">
+				              <input name="siteName" id="siteName" type="text" class="width290px" value="" style="">
+				            </td>
+				          </tr>
+				        </tbody></table>
+				      </div>
+				    </td>
+				  </tr>
+				</tbody></table>
+				</td>
+			</tr>
+		</tbody></table>
+	</div>
+</div>
+
+<table class="marginTop5px marginBottom10px searchArea">
+	<tbody><tr>
+		<td>
+			<a href="javascript:;" onclick="searchAllClear();" class="btn-large btn-primary btn-user btn-block">Initialize all conditions</a>
+			<a href="javascript:;" onclick="fn_conditionSave();" class="btn-large btn-primary btn-user btn-block">Save all conditions</a>			
+		</td>
+		<td class="text-right">
+			<a href="javascript:;" onclick="goReportSearch(document.issueSearchForm, '1');" class="btn-large btn-primary btn-user btn-block">Search</a>
+			<a href="javascript:;" onclick="saveExcelSumm();" class="btn-large btn-primary btn-user btn-block">Excel</a>			
+		</td>
+	</tr>
+</tbody></table>
+
+	<table width="100%">
+	  <tbody><tr>
+	    <td>
+        <span class="data">Show</span>
+        
+          <select name="pageSize" id="pageSize" onchange="pageSizeChange();" class="custom-select custom-select-sm form-control form-control-sm">
+            <option value="">Number of rows</option>
+            <option value="10" selected="">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        
+        <span class="title2">[ Total 0 ]</span>
+        <span class="title2">
+          <a href="javascript:popupColumnSetting();" style="text-decoration:none" tabindex="-1">[ Column Setting ]</a>
+        </span>
+	    </td>
+	  </tr>
+	  <tr>
+	    <td>
+	      
+	        
+	          <span style="color: #DB0000;">'347863'</span>
+	         에 대한 검색결과
+	      
+	      
+	    </td>
+	  </tr>
+	</tbody></table>
+	<div class="dataTables_wrapper">
+	  <table width="100%" border="0" cellpadding="0" cellspacing="1" class="table table-bordered dataTable" tabindex="-1">
+	  	<thead>        	
+	     <tr role="row fix_head">
+	     	 <th>
+	     	   No
+	     	 </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('issueId','1');" tabindex="-1">Issue<br> Number</a>
+	         </th>
+	       
+					
+					
+					
+						
+					
+					
+					
+					
+	         <th class="min100">
+	           <a class="link3" href="javascript:titleClickReport('categoryName','1');" tabindex="-1">Category</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('productName','1');" tabindex="-1">Product</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('versionName','1');" tabindex="-1">Version</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('moduleName','1');" tabindex="-1">Module</a>
+	         </th>
+	       
+					
+					
+						
+					
+					
+					
+					
+					
+	         <th class="min150">
+	           <a class="link3" href="javascript:titleClickReport('title','1');" tabindex="-1">Subject</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+						
+					
+	         <th class="min130">
+	           <a class="link3" href="javascript:titleClickReport('site','1');" tabindex="-1">Customer</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+						
+					
+	         <th class="min130">
+	           <a class="link3" href="javascript:titleClickReport('projectName','1');" tabindex="-1">Project</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('registerName','1');" tabindex="-1">Reporter</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('registeredDate','1');" tabindex="-1">Issued<br> date</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('managerName','1');" tabindex="-1">Handler</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('modifiedDate','1');" tabindex="-1">Modified<br> Date</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('activityName','1');" tabindex="-1">Status</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('closedDate','1');" tabindex="-1">Closed<br> Date</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('severityName','1');" tabindex="-1">Severity</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('resolutionName','1');" tabindex="-1">Reason for Rejection</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('solReqDate','1');" tabindex="-1">Requested date<br> for resoluton</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('solRevDate','1');" tabindex="-1">Expected date<br> for resolution</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('ownerName','1');" tabindex="-1">Owner</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+						
+					
+					
+	         <th class="min60">
+	           <a class="link3" href="javascript:titleClickReport('taggingWord','1');" tabindex="-1">Tag</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('lastActDate','1');" tabindex="-1">Final<br> Action Date</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('patchFileRegYN','1');" tabindex="-1">Patch File YN</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('rndPatchDate','1');" tabindex="-1">Expected<br> Date(R&amp;D)</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('qaTestEndDate','1');" tabindex="-1">Expected<br> Date(QA)</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('siteApplyDate','1');" tabindex="-1">Expected<br> Date(PS)</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('expReopenDate','1');" tabindex="-1">Expected date<br> for reopen</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('patchVeri','1');" tabindex="-1">Patch Verif YN</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('patchVersion','1');" tabindex="-1">Patch Version</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('osName','1');" tabindex="-1">Operating<br>System</a>
+	         </th>
+	       
+					
+					
+					
+					
+					
+					
+	         <th class="min50">
+	           <a class="link3" href="javascript:titleClickReport('resolveName','1');" tabindex="-1">Defect<br>cause</a>
+	         </th>
+	       
+	     </tr>
+	    </thead>
+	    
+	      
+	      
+	        <tbody><tr class="data">
+	          <td colspan="30" align="center">No results found</td>
+	        </tr>
+	      
+	    
+	  </tbody></table>
+	</div>
+		<table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 10px;" tabindex="-1">
+		  <tbody><tr>
+		    <td align="center">
+		      <table border="0" cellspacing="0" cellpadding="0">
+		        <tbody><tr align="center">
+		          <td>
+		            
+		          </td>
+		        </tr>
+		      </tbody></table>
+		    </td>
+		  </tr>
+		</tbody></table>
+  </div>
+</form>
+
+<form id="popupProjectListForm" name="popupProjectListForm" action="ims/issue/popupProjectList.do" style="margin: 0; padding: 0">
+	<input type="hidden" name="formName" id="formName" value="issueSearchForm" style="">
+	<input type="hidden" name="idField" id="idField" value="projectCode" style="">
+	<input type="hidden" name="nameField" id="nameField" value="projectName" style="">
+	<input type="hidden" name="searchText" id="searchText" value="" style="">
+	<input type="hidden" name="searchType" id="searchType" value="" style="">
+</form>
+
+<form id="popupUserListForm" name="popupUserListForm" action="ims/user/popupUserList.do" style="margin: 0; padding: 0">
+	<input type="hidden" name="formName" value="issueSearchForm" style="">
+	<input type="hidden" name="idField" value="" style="">
+	<input type="hidden" name="nameField" value="" style="">
+	<input type="hidden" name="searchType" value="A.NAME" style="">
+	<input type="hidden" name="searchText" value="" style="">
+</form>
+
+<form method="post" id="issueViewForm" name="issueViewForm" action="ims/issue/issueView.do" style="margin: 0; padding: 0">
+	<input type="hidden" id="issueId" name="issueId" style="">
+	<input type="hidden" id="menuCode" name="menuCode" style="">
+	
+		
+			<input type="hidden" id="keywordList" name="keywordList" value="347863" style="">
+		
+	
+	
+	
+</form>
+<br>
+		</td>
+	</tr>
+</tbody></table>
+</div>
+<div class="footerArea">
+	<img src="images/common/copy_2.png" width="259" height="22" class="copyRightText">
+</div>
+
+<div class="token-input-dropdown-facebook" style="display: none;"></div><div class="token-input-dropdown-facebook" style="display: none;"></div><div class="token-input-dropdown-facebook" style="display: none;"></div></body></html>

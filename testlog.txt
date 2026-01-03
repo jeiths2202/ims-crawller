@@ -1,0 +1,454 @@
+PS C:\Users\yijae.shin\Downloads\nim\web-crawler> python main.py crawl -p "OpenFrame" -k "OpenFrame에서 TPETIME 에러 발생 원인과 대응방안" -m 50
+⚙  Parsing natural language query...
+
+                          🔍 Query Parsing Result
+┌───────────────────┬─────────────────────────────────────────────────────┐
+│ Original Query    │ OpenFrame에서 TPETIME 에러 발생 원인과 대응방안     │
+│ Parsed IMS Syntax │ +OpenFrame에서 +TPETIME +에러 +발생 +원인 +대응방안 │
+│ Language          │ KO                                                  │
+│ Method            │ Rules                                               │
+│ Confidence        │ 90.0%                                               │
+│ Explanation       │ AND query with 6 required terms                     │
+└───────────────────┴─────────────────────────────────────────────────────┘
+
+Continue with this parsed query? [Y/n]: Y
+✓ Using parsed query
+
+                               🔧 Crawl Configuration
+┌──────────────────────┬───────────────────────────────────────────────────────────┐
+│ Product              │ OpenFrame                                                 │
+│ Search Query         │ +OpenFrame에서 +TPETIME +에러 +발생 +원인 +대응방안       │
+│ Max Results          │ 50                                                        │
+│ Output Dir           │ C:\Users\yijae.shin\Downloads\nim\web-crawler\data\issues │
+│ Headless             │ Yes                                                       │
+│ Crawl Related Issues │ No                                                        │
+└──────────────────────┴───────────────────────────────────────────────────────────┘
+
+🚀 Initializing crawler...
+[01/03/26 04:03:11] INFO     Step 1: Authenticating...                                                                                    ims_scraper.py:100
+                    INFO     Attempting cookie-based authentication...                                                                            auth.py:57
+                    INFO     Loading cookies from cookies.json                                                                                   auth.py:127
+                    INFO     Added 3 cookies to browser                                                                                          auth.py:134
+[01/03/26 04:03:12] WARNING  Still on login page - authentication failed                                                                         auth.py:190
+                    WARNING  Cookies loaded but verification failed                                                                              auth.py:147
+                    ERROR    Cookie-based authentication failed: Cookie-based authentication failed - cookies may be expired                     auth.py:151
+                    WARNING  Cookie authentication failed: Cookie authentication failed: Cookie-based authentication failed - cookies may be      auth.py:61
+                             expired
+                    INFO     Falling back to form-based login with credentials from .env                                                          auth.py:62
+                    INFO     Attempting form-based login to                                                                                       auth.py:66
+                             https://ims.tmaxsoft.com/tody/ims/issue/issueSearchList.do?searchType=1&menuCode=issue_search
+[01/03/26 04:03:13] INFO     Logging in as: yijae.shin                                                                                            auth.py:86
+[01/03/26 04:03:16] INFO     Successfully authenticated - on IMS page                                                                            auth.py:205
+                    INFO     Form-based login successful                                                                                         auth.py:100
+                    INFO     Step 2: Building search query...                                                                             ims_scraper.py:104
+                    INFO     Search query: +OpenFrame에서 +TPETIME +에러 +발생 +원인 +대응방안                                            ims_scraper.py:106
+                    INFO     Step 3: Executing search...                                                                                  ims_scraper.py:109
+                    INFO     Navigating to search page:                                                                                   ims_scraper.py:387
+                             https://ims.tmaxsoft.com/tody/ims/issue/issueSearchList.do?searchType=1&menuCode=issue_search
+[01/03/26 04:03:18] INFO     Current URL after navigation:                                                                                ims_scraper.py:393
+                             https://ims.tmaxsoft.com/tody/ims/issue/issueSearchList.do?searchType=1&menuCode=issue_search
+                    INFO     Selecting products for: OpenFrame                                                                            ims_scraper.py:408
+                    INFO     Selected all OpenFrame products                                                                              ims_scraper.py:427
+                    INFO     Submitting search...                                                                                         ims_scraper.py:460
+                    INFO     Search function called                                                                                       ims_scraper.py:464
+                    INFO     Waiting for URL to change...                                                                                 ims_scraper.py:467
+[01/03/26 04:03:27] INFO     URL changed after 9s:                                                                                        ims_scraper.py:473
+                             https://ims.tmaxsoft.com/tody/ims/issue/issueSearchList.do?reSearchYN=Y&searchType=1&pageIndex=1&hintMsg=&cl
+                             ickColumn=&orderType=desc&menuCode=issue_search&paramProdCodes=&menuLink=%2Fims%2Fissue%2FissueSearchList.do
+                             &reportType=R101&reportLink=%2Futil%2FsaveSearchList.do&queryId=ims.issueSearch.findIssueSearch&queryIdDetai
+                             l=ims.profile.findUserIssueColumns&moveSearchAction=ims%2Fissue%2FissueSearchList.do&userGrade=TMAX&userName
+                             =Yijae+Shin&userId=yijae.shin&productCodes=128&productCodes=520&productCodes=129&productCodes=123&productCod
+                             es=500&productCodes=137&productCodes=141&productCodes=126&productCodes=147&productCodes=145&productCodes=135
+                             &productCodes=143&productCodes=138&productCodes=134&productCodes=142&productCodes=510&productCodes=127&produ
+                             ctCodes=124&coreSet=&fixSet=&patchVeri=&regStartDate=&regEndDate=&modStartDate=&modEndDate=&closedStartDate=
+                             &closedEndDate=&rndPatchStartDate=&rndPatchEndDate=&qaTestEndStartDate=&qaTestEndEndDate=&siteApplyStartDate
+                             =&siteApplyEndDate=&qaComment=&listType=1&prefix=&keyword=%2BOpenFrame%EC%97%90%EC%84%9C+%2BTPETIME+%2B%EC%9
+                             7%90%EB%9F%AC+%2B%EB%B0%9C%EC%83%9D+%2B%EC%9B%90%EC%9D%B8+%2B%EB%8C%80%EC%9D%91%EB%B0%A9%EC%95%88&taggingWor
+                             dOption=equals&taggingWord=&issueId=&bugNo=&registers=&owners=&managers=&projectName=&site=&projectCode=&sit
+                             eName=&pageSize=
+                    INFO     Waiting for page to load completely...                                                                       ims_scraper.py:481
+                    INFO     Waiting for result rows to appear...                                                                         ims_scraper.py:488
+[01/03/26 04:03:57] ERROR    No results found: Page.wait_for_selector: Timeout 30000ms exceeded.                                          ims_scraper.py:498
+                             Call log:
+                               - waiting for locator("tr.rowClickData")
+
+[01/03/26 04:03:58] INFO     Screenshot saved to:                                                                                         ims_scraper.py:502
+                             C:\Users\yijae.shin\Downloads\nim\web-crawler\data\issues\no_results_20260103_040357.png
+                    INFO     HTML saved to: C:\Users\yijae.shin\Downloads\nim\web-crawler\data\issues\no_results_20260103_040358.html     ims_scraper.py:509
+                    ERROR    Search timeout: No search results found. URL:                                                                ims_scraper.py:537
+                             https://ims.tmaxsoft.com/tody/ims/issue/issueSearchList.do?reSearchYN=Y&searchType=1&pageIndex=1&hintMsg=&cl
+                             ickColumn=&orderType=desc&menuCode=issue_search&paramProdCodes=&menuLink=%2Fims%2Fissue%2FissueSearchList.do
+                             &reportType=R101&reportLink=%2Futil%2FsaveSearchList.do&queryId=ims.issueSearch.findIssueSearch&queryIdDetai
+                             l=ims.profile.findUserIssueColumns&moveSearchAction=ims%2Fissue%2FissueSearchList.do&userGrade=TMAX&userName
+                             =Yijae+Shin&userId=yijae.shin&productCodes=128&productCodes=520&productCodes=129&productCodes=123&productCod
+                             es=500&productCodes=137&productCodes=141&productCodes=126&productCodes=147&productCodes=145&productCodes=135
+                             &productCodes=143&productCodes=138&productCodes=134&productCodes=142&productCodes=510&productCodes=127&produ
+                             ctCodes=124&coreSet=&fixSet=&patchVeri=&regStartDate=&regEndDate=&modStartDate=&modEndDate=&closedStartDate=
+                             &closedEndDate=&rndPatchStartDate=&rndPatchEndDate=&qaTestEndStartDate=&qaTestEndEndDate=&siteApplyStartDate
+                             =&siteApplyEndDate=&qaComment=&listType=1&prefix=&keyword=%2BOpenFrame%EC%97%90%EC%84%9C+%2BTPETIME+%2B%EC%9
+                             7%90%EB%9F%AC+%2B%EB%B0%9C%EC%83%9D+%2B%EC%9B%90%EC%9D%B8+%2B%EB%8C%80%EC%9D%91%EB%B0%A9%EC%95%88&taggingWor
+                             dOption=equals&taggingWord=&issueId=&bugNo=&registers=&owners=&managers=&projectName=&site=&projectCode=&sit
+                             eName=&pageSize=
+                    ERROR    Crawling failed: No search results found. URL:                                                               ims_scraper.py:157
+                             https://ims.tmaxsoft.com/tody/ims/issue/issueSearchList.do?reSearchYN=Y&searchType=1&pageIndex=1&hintMsg=&cl
+                             ickColumn=&orderType=desc&menuCode=issue_search&paramProdCodes=&menuLink=%2Fims%2Fissue%2FissueSearchList.do
+                             &reportType=R101&reportLink=%2Futil%2FsaveSearchList.do&queryId=ims.issueSearch.findIssueSearch&queryIdDetai
+                             l=ims.profile.findUserIssueColumns&moveSearchAction=ims%2Fissue%2FissueSearchList.do&userGrade=TMAX&userName
+                             =Yijae+Shin&userId=yijae.shin&productCodes=128&productCodes=520&productCodes=129&productCodes=123&productCod
+                             es=500&productCodes=137&productCodes=141&productCodes=126&productCodes=147&productCodes=145&productCodes=135
+                             &productCodes=143&productCodes=138&productCodes=134&productCodes=142&productCodes=510&productCodes=127&produ
+                             ctCodes=124&coreSet=&fixSet=&patchVeri=&regStartDate=&regEndDate=&modStartDate=&modEndDate=&closedStartDate=
+                             &closedEndDate=&rndPatchStartDate=&rndPatchEndDate=&qaTestEndStartDate=&qaTestEndEndDate=&siteApplyStartDate
+                             =&siteApplyEndDate=&qaComment=&listType=1&prefix=&keyword=%2BOpenFrame%EC%97%90%EC%84%9C+%2BTPETIME+%2B%EC%9
+                             7%90%EB%9F%AC+%2B%EB%B0%9C%EC%83%9D+%2B%EC%9B%90%EC%9D%B8+%2B%EB%8C%80%EC%9D%91%EB%B0%A9%EC%95%88&taggingWor
+                             dOption=equals&taggingWord=&issueId=&bugNo=&registers=&owners=&managers=&projectName=&site=&projectCode=&sit
+                             eName=&pageSize=
+⠴ Crawling issues... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   0% -:--:--
+❌ Crawl failed: No search results found. URL:
+https://ims.tmaxsoft.com/tody/ims/issue/issueSearchList.do?reSearchYN=Y&searchType=1&pageIndex=1&hintMsg=&clickColumn=&orderType=desc&menuCode=issue_search&
+paramProdCodes=&menuLink=%2Fims%2Fissue%2FissueSearchList.do&reportType=R101&reportLink=%2Futil%2FsaveSearchList.do&queryId=ims.issueSearch.findIssueSearch&
+queryIdDetail=ims.profile.findUserIssueColumns&moveSearchAction=ims%2Fissue%2FissueSearchList.do&userGrade=TMAX&userName=Yijae+Shin&userId=yijae.shin&produc
+tCodes=128&productCodes=520&productCodes=129&productCodes=123&productCodes=500&productCodes=137&productCodes=141&productCodes=126&productCodes=147&productCo
+des=145&productCodes=135&productCodes=143&productCodes=138&productCodes=134&productCodes=142&productCodes=510&productCodes=127&productCodes=124&coreSet=&fix
+Set=&patchVeri=&regStartDate=&regEndDate=&modStartDate=&modEndDate=&closedStartDate=&closedEndDate=&rndPatchStartDate=&rndPatchEndDate=&qaTestEndStartDate=&
+qaTestEndEndDate=&siteApplyStartDate=&siteApplyEndDate=&qaComment=&listType=1&prefix=&keyword=%2BOpenFrame%EC%97%90%EC%84%9C+%2BTPETIME+%2B%EC%97%90%EB%9F%A
+C+%2B%EB%B0%9C%EC%83%9D+%2B%EC%9B%90%EC%9D%B8+%2B%EB%8C%80%EC%9D%91%EB%B0%A9%EC%95%88&taggingWordOption=equals&taggingWord=&issueId=&bugNo=&registers=&owner
+s=&managers=&projectName=&site=&projectCode=&siteName=&pageSize=
+                    ERROR    Crawl error details:                                                                                                main.py:425
+                             ╭─────────────────────────────────────── Traceback (most recent call last) ───────────────────────────────────────╮
+                             │ C:\Users\yijae.shin\Downloads\nim\web-crawler\crawler\ims_scraper.py:490 in _execute_search                     │
+                             │                                                                                                                 │
+                             │   487 │   │   │   # Wait generously for results to appear                                                       │
+                             │   488 │   │   │   logger.info("Waiting for result rows to appear...")                                           │
+                             │   489 │   │   │   try:                                                                                          │
+                             │ ❱ 490 │   │   │   │   self.page.wait_for_selector('tr.rowClickData', state='attached',                          │
+                             │       timeout=30000)                                                                                            │
+                             │   491 │   │   │   │   logger.info("Result rows found (attached to DOM)")                                        │
+                             │   492 │   │   │   │                                                                                             │
+                             │   493 │   │   │   │   # Now wait for them to be visible                                                         │
+                             │                                                                                                                 │
+                             │ C:\Users\yijae.shin\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\sync_api\_generated.py │
+                             │ :8213 in wait_for_selector                                                                                      │
+                             │                                                                                                                 │
+                             │    8210 │   │   """                                                                                             │
+                             │    8211 │   │                                                                                                   │
+                             │    8212 │   │   return mapping.from_impl_nullable(                                                              │
+                             │ ❱  8213 │   │   │   self._sync(                                                                                 │
+                             │    8214 │   │   │   │   self._impl_obj.wait_for_selector(                                                       │
+                             │    8215 │   │   │   │   │   selector=selector, timeout=timeout, state=state, strict=strict                      │
+                             │    8216 │   │   │   │   )                                                                                       │
+                             │                                                                                                                 │
+                             │ C:\Users\yijae.shin\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_sync_base.py:11 │
+                             │ 5 in _sync                                                                                                      │
+                             │                                                                                                                 │
+                             │   112 │   │   while not task.done():                                                                            │
+                             │   113 │   │   │   self._dispatcher_fiber.switch()                                                               │
+                             │   114 │   │   asyncio._set_running_loop(self._loop)                                                             │
+                             │ ❱ 115 │   │   return task.result()                                                                              │
+                             │   116 │                                                                                                         │
+                             │   117 │   def _wrap_handler(                                                                                    │
+                             │   118 │   │   self, handler: Union[Callable[..., Any], Any]                                                     │
+                             │                                                                                                                 │
+                             │ C:\Users\yijae.shin\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_page.py:419 in  │
+                             │ wait_for_selector                                                                                               │
+                             │                                                                                                                 │
+                             │    416 │   │   state: Literal["attached", "detached", "hidden", "visible"] = None,                              │
+                             │    417 │   │   strict: bool = None,                                                                             │
+                             │    418 │   ) -> Optional[ElementHandle]:                                                                        │
+                             │ ❱  419 │   │   return await self._main_frame.wait_for_selector(**locals_to_params(locals()))                    │
+                             │    420 │                                                                                                        │
+                             │    421 │   async def is_checked(                                                                                │
+                             │    422 │   │   self, selector: str, strict: bool = None, timeout: float = None                                  │
+                             │                                                                                                                 │
+                             │ C:\Users\yijae.shin\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_frame.py:369 in │
+                             │ wait_for_selector                                                                                               │
+                             │                                                                                                                 │
+                             │   366 │   │   state: Literal["attached", "detached", "hidden", "visible"] = None,                               │
+                             │   367 │   ) -> Optional[ElementHandle]:                                                                         │
+                             │   368 │   │   return from_nullable_channel(                                                                     │
+                             │ ❱ 369 │   │   │   await self._channel.send(                                                                     │
+                             │   370 │   │   │   │   "waitForSelector", self._timeout, locals_to_params(locals())                              │
+                             │   371 │   │   │   )                                                                                             │
+                             │   372 │   │   )                                                                                                 │
+                             │                                                                                                                 │
+                             │ C:\Users\yijae.shin\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_connection.py:6 │
+                             │ 9 in send                                                                                                       │
+                             │                                                                                                                 │
+                             │    66 │   │   is_internal: bool = False,                                                                        │
+                             │    67 │   │   title: str = None,                                                                                │
+                             │    68 │   ) -> Any:                                                                                             │
+                             │ ❱  69 │   │   return await self._connection.wrap_api_call(                                                      │
+                             │    70 │   │   │   lambda: self._inner_send(method, timeout_calculator, params, False),                          │
+                             │    71 │   │   │   is_internal,                                                                                  │
+                             │    72 │   │   │   title,                                                                                        │
+                             │                                                                                                                 │
+                             │ C:\Users\yijae.shin\AppData\Local\Programs\Python\Python312\Lib\site-packages\playwright\_impl\_connection.py:5 │
+                             │ 59 in wrap_api_call                                                                                             │
+                             │                                                                                                                 │
+                             │   556 │   │   try:                                                                                              │
+                             │   557 │   │   │   return await cb()                                                                             │
+                             │   558 │   │   except Exception as error:                                                                        │
+                             │ ❱ 559 │   │   │   raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None                      │
+                             │   560 │   │   finally:                                                                                          │
+                             │   561 │   │   │   self._api_zone.set(None)                                                                      │
+                             │   562                                                                                                           │
+                             ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                             TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded.
+                             Call log:
+                               - waiting for locator("tr.rowClickData")
+
+
+                             During handling of the above exception, another exception occurred:
+
+                             ╭─────────────────────────────────────── Traceback (most recent call last) ───────────────────────────────────────╮
+                             │ C:\Users\yijae.shin\Downloads\nim\web-crawler\main.py:361 in crawl                                              │
+                             │                                                                                                                 │
+                             │    358 │   │   │   │   )                                                                                        │
+                             │    359 │   │   │   │                                                                                            │
+                             │    360 │   │   │   │   try:                                                                                     │
+                             │ ❱  361 │   │   │   │   │   issues = scraper.crawl(                                                              │
+                             │    362 │   │   │   │   │   │   product=product,                                                                 │
+                             │    363 │   │   │   │   │   │   keywords=final_query,                                                            │
+                             │    364 │   │   │   │   │   │   max_results=max_results,                                                         │
+                             │                                                                                                                 │
+                             │ C:\Users\yijae.shin\Downloads\nim\web-crawler\crawler\ims_scraper.py:110 in crawl                               │
+                             │                                                                                                                 │
+                             │   107 │   │   │                                                                                                 │
+                             │   108 │   │   │   # Step 3: Execute search                                                                      │
+                             │   109 │   │   │   logger.info("Step 3: Executing search...")                                                    │
+                             │ ❱ 110 │   │   │   issue_links = self._execute_search(search_query, max_results, product)                        │
+                             │   111 │   │   │   logger.info(f"Found {len(issue_links)} issues to crawl")                                      │
+                             │   112 │   │   │                                                                                                 │
+                             │   113 │   │   │   # Step 4: Crawl each issue (and related issues if enabled)                                    │
+                             │                                                                                                                 │
+                             │ C:\Users\yijae.shin\Downloads\nim\web-crawler\crawler\ims_scraper.py:511 in _execute_search                     │
+                             │                                                                                                                 │
+                             │   508 │   │   │   │   │   f.write(html_content)                                                                 │
+                             │   509 │   │   │   │   logger.info(f"HTML saved to: {html_path}")                                                │
+                             │   510 │   │   │   │                                                                                             │
+                             │ ❱ 511 │   │   │   │   raise PlaywrightTimeout(f"No search results found. URL:                                   │
+                             │       {self.page.url}")                                                                                         │
+                             │   512 │   │   │                                                                                                 │
+                             │   513 │   │   │   # Extract issue links from search results                                                     │
+                             │   514 │   │   │   # TmaxSoft IMS: Results are in table rows with onclick handlers                               │
+                             ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                             TimeoutError: No search results found. URL:
+                             https://ims.tmaxsoft.com/tody/ims/issue/issueSearchList.do?reSearchYN=Y&searchType=1&pageIndex=1&hintMsg=&clickColu
+                             mn=&orderType=desc&menuCode=issue_search&paramProdCodes=&menuLink=%2Fims%2Fissue%2FissueSearchList.do&reportType=R1
+                             01&reportLink=%2Futil%2FsaveSearchList.do&queryId=ims.issueSearch.findIssueSearch&queryIdDetail=ims.profile.findUse
+                             rIssueColumns&moveSearchAction=ims%2Fissue%2FissueSearchList.do&userGrade=TMAX&userName=Yijae+Shin&userId=yijae.shi
+                             n&productCodes=128&productCodes=520&productCodes=129&productCodes=123&productCodes=500&productCodes=137&productCode
+                             s=141&productCodes=126&productCodes=147&productCodes=145&productCodes=135&productCodes=143&productCodes=138&product
+                             Codes=134&productCodes=142&productCodes=510&productCodes=127&productCodes=124&coreSet=&fixSet=&patchVeri=&regStartD
+                             ate=&regEndDate=&modStartDate=&modEndDate=&closedStartDate=&closedEndDate=&rndPatchStartDate=&rndPatchEndDate=&qaTe
+                             stEndStartDate=&qaTestEndEndDate=&siteApplyStartDate=&siteApplyEndDate=&qaComment=&listType=1&prefix=&keyword=%2BOp
+                             enFrame%EC%97%90%EC%84%9C+%2BTPETIME+%2B%EC%97%90%EB%9F%AC+%2B%EB%B0%9C%EC%83%9D+%2B%EC%9B%90%EC%9D%B8+%2B%EB%8C%80
+                             %EC%9D%91%EB%B0%A9%EC%95%88&taggingWordOption=equals&taggingWord=&issueId=&bugNo=&registers=&owners=&managers=&proj
+                             ectName=&site=&projectCode=&siteName=&pageSize=
+
+
+
+
+####
+  # 기본 명령어 (TPETIME 에러 관련 이슈 검색)
+  python main.py crawl --product "OpenFrame" --keywords "+TPETIME" --max-results 50
+
+  # 원인과 대응방안을 포함하는 더 구체적인 검색
+  python main.py crawl --product "OpenFrame" --keywords "+TPETIME 원인 대응 해결" --max-results 100
+
+  # 영문 키워드로 검색 (IMS가 영문인 경우)
+  python main.py crawl --product "OpenFrame" --keywords "+TPETIME cause solution workaround" --max-results 100
+
+  # 가장 포괄적인 검색 (한영 혼합)
+  python main.py crawl --product "OpenFrame" --keywords "+TPETIME error 원인 대응방안 해결방법 cause solution" --max-results 100
+
+  키워드 구문 설명:
+  - +TPETIME: TPETIME을 반드시 포함 (AND 조건)
+  - 원인 대응 해결: 이 중 하나라도 포함된 이슈 검색 (OR 조건)
+  - error: 에러 관련 추가 필터링
+
+  제품명 옵션:
+  - TPETIME 에러는 주로 OpenFrame, Tuxedo 시스템에서 발생
+  - IMS에서 사용하는 실제 제품명으로 교체 필요
+
+  권장 명령어:
+  python main.py crawl --product "OpenFrame" --keywords "+TPETIME" --max-results 50
+
+  이 명령어가 가장 정확한 결과를 제공할 것입니다. 결과가 너무 적으면 키워드를 "TPETIME 원인 대응"처럼 OR 조건으로 확장하세요.
+
+
+
+
+PS C:\Users\yijae.shin\Downloads\nim\web-crawler> python main.py search -p "OpenFrame" -q "+TPETIME error 원인 대응방안 해결방법 cause solution" --show-scores
+╭────────────────────────────────────────────────────────────────── 🔍 IMS Issue Search ───────────────────────────────────────────────────────────────────╮
+│ Hybrid Search Engine                                                                                                                                     │
+│ BM25 (30%) + Semantic (70%) with CJK optimization                                                                                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+[01/03/26 16:07:50] INFO     PyTorch version 2.6.0+cpu available.                                                                               config.py:58
+⚙  Initializing hybrid search engine...
+[01/03/26 16:07:51] INFO     Use pytorch device_name: cpu                                                                         SentenceTransformer.py:219
+                    INFO     Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2                           SentenceTransformer.py:227
+✓ Search engine initialized
+🔍 Auto-detecting latest crawl session...
+Filtering by product: OpenFrame
+✓ Using latest session: OpenFrame_TPETIME_20260103_154919
+
+Query: +TPETIME error 원인 대응방안 해결방법 cause solution
+Searching across all issues in session...
+
+Batches: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 47.60it/s]
+Batches: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 32.40it/s]
+Batches: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 40.41it/s]
+Batches: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 47.61it/s]
+Batches: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 42.52it/s]                              🔍 Search Results (5 found)
+┏━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ #   ┃ Issue ID ┃ Title                                    ┃ Product         ┃ Score  ┃
+┡━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ 1   │ 347863   │ [Project] [일본 동경해상] TPETIME 에러   │ OpenFrame Batch │ 0.676  │
+│     │          │ 분석 및 가...                            │                 │        │
+├─────┼──────────┼──────────────────────────────────────────┼─────────────────┼────────┤
+│ 2   │ 344218   │ [일본 이나게야] 대화형 트랜잭션에서      │ OpenFrame OSC   │ 0.653  │
+│     │          │ timeout이 발생하는 현상                  │                 │        │
+├─────┼──────────┼──────────────────────────────────────────┼─────────────────┼────────┤
+│ 3   │ 337468   │ [Project] [일본 우오이치] ndbunloader의  │ OpenFrame AIM   │ 0.632  │
+│     │          │ 성능개선...                              │                 │        │
+├─────┼──────────┼──────────────────────────────────────────┼─────────────────┼────────┤
+│ 4   │ 339659   │ [일본 후지생명] aimcmd 에 메세지가 없는  │ OpenFrame AIM   │ 0.584  │
+│     │          │ 경우에 대해 문의드...                    │                 │        │
+├─────┼──────────┼──────────────────────────────────────────┼─────────────────┼────────┤
+│ 5   │ 336450   │ [일본 IJTT] CONSOLE처리중 에러현상에     │ OpenFrame Batch │ 0.491  │
+│     │          │ 대해 확인부탁드립니...                   │                 │        │
+└─────┴──────────┴──────────────────────────────────────────┴─────────────────┴────────┘
+
+Top 5 Results (Detailed):
+
+[1] Issue 347863
+    Title: [Project] [일본 동경해상] TPETIME 에러 분석 및 가이드 문의
+    Product: OpenFrame Batch | Status: Closed
+    Score: 0.676
+      (Hybrid: BM25 30% + Semantic 70%)
+    Comment:
+    민사혁 매니저님기본적으로 Action No.2242424 에서 말씀하신 이전의 이슈와 비슷해보입니다.문상호님,이 이슈를 보면, tjclrun에서는 23:55:13에 TPETIME에러가
+발생하였습니다.[2025-10-01T23:55:13.651469]  [E] [JES6062E] tpcall OBMJMSVRENQUEUE fa...
+    Author: 전성배 | Date: N/A
+
+[2] Issue 344218
+    Title: [일본 이나게야] 대화형 트랜잭션에서 timeout이 발생하는 현상
+    Product: OpenFrame OSC | Status: Approved
+    Score: 0.653
+      (Hybrid: BM25 30% + Semantic 70%)
+    Comment:
+    안녕하세요. 정우석입니다.RECEIVE MAP에서 내부적으로 tprecvfromcli를 수행하고 대기하게 되는데, 이때 옵션으로 TPNOTIME을 주기 때문에 로직 상으로는 60초
+타임아웃이 적용되지 않습니다.그런데 테스트 환경의 티맥스 설정 내용을 보면 TXTIME이 60초로 지정된 것 같습니다. 이 경우 트랜잭션 모드에서 서비스 타임아웃이
+적용되는 것으...
+    Author: 정우석 | Date: N/A
+
+[3] Issue 337468
+    Title: [Project] [일본 우오이치] ndbunloader의 성능개선 요청드립니다.
+    Product: OpenFrame AIM | Status: Closed_P
+    Score: 0.632
+      (Hybrid: BM25 30% + Semantic 70%)
+    Comment:
+    안녕하세요. OF 개발 1팀 류재열입니다.38327에러 발생에 대한 패치 제공드립니다.원인은 IMS#337947 에서 DBESCB 1111 -> 1212 수정건에 대해 jxkunlod도 영향을
+받는 것을 체크하지 못해서 입니다.패치 적용 후 정상 동작 확인했습니다.@김상현 매니저님위 패치는 스미노에에도 적용이 필요합니다.감사합니다.commit 05d8265...
+    Author: 류재열 | Date: N/A
+
+[4] Issue 339659
+    Title: [일본 후지생명] aimcmd 에 메세지가 없는 경우에 대해 문의드립니다.
+    Product: OpenFrame AIM | Status: Closed
+    Score: 0.584
+      (Hybrid: BM25 30% + Semantic 70%)
+    Comment:
+    obmjschd서버가 이상하네요해당 시간대에 아래와 같이 계속 에러가 나고 있었습니다.13708.192751:(E) SVR3039 internal error : unknown message type :2166
+[CSC5713]13708.192751:(E) SVR3039 internal error : unknown message type :2166 [CSC5...
+    Author: Sungil Kim | Date: N/A
+
+[5] Issue 336450
+    Title: [일본 IJTT] CONSOLE처리중 에러현상에 대해 확인부탁드립니다. (현재 고객 장애상황입니다.)
+    Product: OpenFrame Batch | Status: Assigned
+    Score: 0.491
+      (Hybrid: BM25 30% + Semantic 70%)
+    Comment:
+    안녕하세요. OF개발 2팀 김예진입니다.2번 패치(cmsvr  disconnect 에러 해결 패치) 관련하여 액션 남깁니다[문제 원인]콘솔 클라이언트(tconmgr, ofmanager 등)의
+연결을 끊기 위해서는 cmsvr에서 해당 콘솔 클라이언트의 정보를 가지고 있어야 합니다.해당 문제는, cmsvr를 down된 후 재기동 하면, cmsvr 에서 관리하고...
+    Author: 김예진C | Date: N/A
+
+╭─────────────────────────────────────────────────────────────────── ✅ Search Summary ────────────────────────────────────────────────────────────────────╮
+│ ✓ Search completed                                                                                                                                       │
+│                                                                                                                                                          │
+│ Results: 5 issues                                                                                                                                        │
+│ Search time: 9.03s                                                                                                                                       │
+│ Method: Hybrid (BM25 + Semantic)                                                                                                                         │
+│ Session: OpenFrame_TPETIME_20260103_154919                                                                                                               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+💡 Tip: View full issue: data\users\yijae.shin\sessions\OpenFrame_TPETIME_20260103_154919\347863_20260103_155005.json
+
+
+
+PS C:\Users\yijae.shin\Downloads\nim\web-crawler> python main.py generate-report -p "OpenFrame" -q "+TPETIME error 원인 대응방안 해결방법 cause solution" --use-llm -l ko
+╭────────────────────────────────────────────────────────────────── 📝 Report Generator ───────────────────────────────────────────────────────────────────╮
+│ IMS Report Generator                                                                                                                                     │
+│ Autonomous report generation from crawled issue data                                                                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+⚙  Initializing LLM client...
+[01/03/26 16:22:48] INFO     Ollama client initialized: http://localhost:11434, model=gemma:2b                                              llm_client.py:59
+                    INFO     Using LLM model: gemma:2b                                                                                     llm_client.py:362
+✓ LLM client initialized: gemma:2b
+🔍 Auto-detecting latest crawl session for product: OpenFrame
+✓ Using latest session: OpenFrame_TPETIME_20260103_154919
+📂 Loading issues from: data\users\yijae.shin\sessions\OpenFrame_TPETIME_20260103_154919
+                    INFO     Loaded issue: 336450_20260103_155201.json                                                                report_generator.py:51
+                    INFO     Loaded issue: 337468_20260103_155133.json                                                                report_generator.py:51
+                    INFO     Loaded issue: 339659_20260103_155102.json                                                                report_generator.py:51
+                    INFO     Loaded issue: 344218_20260103_155035.json                                                                report_generator.py:51
+                    INFO     Loaded issue: 347863_20260103_155005.json                                                                report_generator.py:51
+                    INFO     Loaded issue: search_result.json                                                                         report_generator.py:51
+✓ Loaded 6 issue(s)
+⚙  Generating report...
+Query: +TPETIME error 원인 대응방안 해결방법 cause solution
+Product: OpenFrame
+Language: ko
+Mode: LLM-enhanced
+                    INFO     Generating report for 6 issues...                                                                       report_generator.py:191
+                    INFO     Loaded search results from:                                                                             report_generator.py:204
+                             data\users\yijae.shin\sessions\OpenFrame_TPETIME_20260103_154919\search_result.json
+                    INFO     Using LLM-enhanced report generation                                                                    report_generator.py:211
+                    INFO     Generating with gemma:2b...                                                                                   llm_client.py:202
+[01/03/26 16:23:20] WARNING  LLM enhancement failed: LLM generation timeout after 30s                                                report_generator.py:295
+                    INFO     Falling back to template-only report                                                                    report_generator.py:296
+                    INFO     Report saved to: data\users\yijae.shin\analytics\OpenFrame_TPETIME_20260103_154919.md                   report_generator.py:223
+
+╭─────────────────────────────────────────────────────────────────────── ✅ Success ───────────────────────────────────────────────────────────────────────╮
+│ ✓ Report generated successfully!                                                                                                                         │
+│                                                                                                                                                          │
+│ Output: data\users\yijae.shin\analytics\OpenFrame_TPETIME_20260103_154919.md                                                                             │
+│ Size: 3898 characters                                                                                                                                    │
+│ Issues analyzed: 6                                                                                                                                       │
+│ Generation time: 32.06s                                                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Report Preview:
+# OpenFrame 이슈 검색 결과
+
+**검색일**: 2026-01-03
+**검색 쿼리**: `+TPETIME error 원인 대응방안 해결방법 cause solution`
+**검색 제품**: OpenFrame
+**검색 결과**: 6개 이슈 발견
+
+---
+
+## 📊 검색 결과 요약
+
+| Issue ID | 제목 | 상태 | 우선순위 | 등록일 |
+|----------|------|------|----------|--------|
+| 347863 | [Project] [일본 동경해상] TPETIME 에러 분석 및 가이드 문의 | Closed | Normal | 2025/10/17 18:12:14 |
+| 344218 | [일본 이나게야] 대화형 트랜잭션에서 timeout이 발생하는 현상 | Approved | High | 2025/07/14 13:45:05 |
+| 339659 | [일본 후지생명] aimcmd 에 메세지가 없는 경우에 대해 문의드립니다. | Closed | Normal | 2025/03/07 10:52:00 |
+| 337468 | [Project] [일본 우오이치] ndbunloader의 성능개선 요청드립니다. | Closed_P | Normal | 2025/01/08 09:22:09 |
+| 336450 | [일본 IJTT] CONSOLE처리중 에러현상에 대해 확인부탁드립니다. (현재 고객 장애상 | Assigned | Normal | 2024/12/06 10:49:47 |
+| N/A | No title | Unknown | Normal | N/A |
+
+...
+
+→ View full report: data\users\yijae.shin\analytics\OpenFrame_TPETIME_20260103_154919.md
