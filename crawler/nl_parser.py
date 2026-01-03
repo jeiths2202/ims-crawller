@@ -212,36 +212,52 @@ class NaturalLanguageParser:
         # Extract terms (keywords to search)
         terms = self._extract_terms(query, patterns, language)
 
-        # Build IMS query based on intent
+        # Build IMS query based on detected intent
         if intent == 'AND':
+            # Pure AND query: all terms required
             ims_query = self._build_and_query(terms)
-            explanation = f"AND query with {len(terms)} required terms"
+            explanation = f"AND query: {len(terms)} required terms"
             confidence = 0.9
 
         elif intent == 'OR':
+            # Pure OR query: any term matches
             ims_query = self._build_or_query(terms)
-            explanation = f"OR query with {len(terms)} optional terms"
+            explanation = f"OR query: {len(terms)} optional terms"
             confidence = 0.9
 
         elif intent == 'PHRASE':
+            # Exact phrase query
             ims_query = self._build_phrase_query(terms)
             explanation = f"Exact phrase query"
             confidence = 0.95
 
         elif intent == 'MIXED':
-            ims_query = self._build_mixed_query(terms, operators)
-            explanation = f"Mixed query with AND/OR operators"
-            confidence = 0.85
+            # Mixed operators: parse AND/OR grouping
+            ims_query = self._build_mixed_query(query, terms, patterns, language)
 
-        else:  # SIMPLE (no operators)
-            # Use smart priority-based parsing
-            ims_query, high_terms, medium_terms = self._build_smart_query(terms, language)
-            if high_terms:
-                explanation = f"Smart query: {len(high_terms)} required + {len(medium_terms)} optional terms"
-                confidence = 0.85
+            # Count AND terms (with +) and OR terms (without +)
+            and_count = ims_query.count('+')
+            or_count = len(terms) - and_count
+
+            if and_count > 0 and or_count > 0:
+                explanation = f"Mixed query: {and_count} required (AND) + {or_count} optional (OR) terms"
+                confidence = 0.8
             else:
-                explanation = f"Simple OR query (no operators detected)"
-                confidence = 0.7
+                explanation = f"Mixed query: {len(terms)} terms"
+                confidence = 0.75
+
+        else:  # SIMPLE
+            # No explicit operators: use smart query builder with synonym expansion
+            ims_query, high_terms, medium_terms = self._build_smart_query(terms, language)
+            if high_terms and medium_terms:
+                explanation = f"Smart query: {len(high_terms)} required + {len(medium_terms)} optional terms"
+                confidence = 0.75
+            elif high_terms:
+                explanation = f"Required terms: {len(high_terms)} terms"
+                confidence = 0.8
+            else:
+                explanation = f"Simple query: {len(medium_terms)} terms"
+                confidence = 0.6
 
         return ParseResult(
             ims_query=ims_query,
@@ -414,14 +430,23 @@ class NaturalLanguageParser:
             for word in words:
                 word = word.strip('.,!?;:()[]{}')
 
-                # Japanese-specific: remove trailing particles
-                if language == 'ja' and word:
-                    ja_patterns = self.patterns.get_patterns('ja')
-                    if 'particles' in ja_patterns:
-                        for particle in ja_patterns['particles']:
+                # Korean/Japanese-specific: remove trailing particles
+                if language in ['ko', 'ja'] and word:
+                    lang_patterns = self.patterns.get_patterns(language)
+                    if 'particles' in lang_patterns:
+                        # Sort particles by length (longest first) to avoid partial matches
+                        particles_sorted = sorted(lang_patterns['particles'], key=len, reverse=True)
+                        for particle in particles_sorted:
                             if word.endswith(particle):
                                 word = word[:-len(particle)]
                                 break
+
+                # Filter out intent keywords (Korean-specific)
+                # Intent keywords express what user wants to know, not actual search terms
+                if language == 'ko' and word:
+                    lang_patterns = self.patterns.get_patterns(language)
+                    if word in lang_patterns.get('intent_keywords', []):
+                        continue  # Skip intent keywords
 
                 if word and not self.patterns.is_stopword(word, language):
                     terms.append(word)
@@ -430,6 +455,38 @@ class NaturalLanguageParser:
         terms.extend(phrases)
 
         return terms
+
+    def _expand_synonyms(self, term: str, language: str) -> str:
+        """
+        Expand English term to include Korean synonyms for better search coverage
+
+        Args:
+            term: Search term (e.g., "error")
+            language: Language code
+
+        Returns:
+            Expanded term with synonyms (e.g., "error 에러 오류")
+            or original term if no synonyms found
+
+        Example:
+            "error" → "error 에러 오류" (OR search in IMS)
+            "TPETIME" → "TPETIME" (no synonyms, unchanged)
+        """
+        if language != 'ko':
+            return term
+
+        patterns = self.patterns.get_patterns('ko')
+        synonyms_dict = patterns.get('synonyms', {})
+
+        # Check if this term has synonyms
+        term_lower = term.lower()
+        if term_lower in synonyms_dict:
+            synonym_list = synonyms_dict[term_lower]
+            # Return space-separated synonyms (OR search in IMS)
+            # e.g., "error 에러 오류"
+            return ' '.join(synonym_list)
+
+        return term
 
     def _build_and_query(self, terms: List[str]) -> str:
         """Build AND query: all terms required"""
@@ -448,27 +505,84 @@ class NaturalLanguageParser:
             phrase = ' '.join(terms)
             return f"'{phrase}'"
 
-    def _build_mixed_query(self, terms: List[str], operators: List[str]) -> str:
+    def _build_mixed_query(self, query: str, terms: List[str], patterns: dict, language: str) -> str:
         """
         Build mixed query with multiple operators
 
-        Strategy: Default to AND for all terms (conservative)
-        User can refine if needed
+        Strategy:
+        - Terms associated with AND keywords get + prefix (required)
+        - Terms associated with OR keywords get no prefix (optional)
+
+        Example: "error and crash or timeout"
+        - "error and crash" → "+error +crash" (AND group)
+        - "or timeout" → "timeout" (OR group)
+        - Result: "+error +crash timeout"
 
         Args:
-            terms: Search terms
-            operators: List of operators found
+            query: Original query string
+            terms: Extracted search terms
+            patterns: Language patterns
+            language: Language code
 
         Returns:
             IMS syntax query
         """
-        if 'PHRASE' in operators:
-            # If phrases exist, handle them specially
-            # For now, treat all as required
+        # Get AND and OR keywords for this language
+        and_keywords = patterns['and_keywords']
+        or_keywords = patterns['or_keywords']
+
+        # Split query by OR keywords first (they have lower precedence)
+        query_lower = query.lower()
+
+        # Find all OR keyword positions
+        or_positions = []
+        for or_kw in sorted(or_keywords, key=len, reverse=True):
+            if language == 'en':
+                pattern = rf'\b{re.escape(or_kw)}\b'
+            else:
+                pattern = re.escape(or_kw)
+
+            for match in re.finditer(pattern, query_lower):
+                or_positions.append(match.start())
+
+        # If no OR keywords found, treat all as AND
+        if not or_positions:
             return self._build_and_query(terms)
-        else:
-            # Mix of AND/OR - default to AND (conservative)
-            return self._build_and_query(terms)
+
+        # Split terms into AND groups and OR groups
+        # Terms before any OR keyword are AND terms
+        # Terms after OR keywords are OR terms
+        and_terms = []
+        or_terms = []
+
+        # Find the position of each term in the original query
+        for term in terms:
+            # Find where this term appears in the query
+            term_lower = term.lower()
+            if language == 'en':
+                pattern = rf'\b{re.escape(term_lower)}\b'
+            else:
+                pattern = re.escape(term_lower)
+
+            match = re.search(pattern, query_lower)
+            if match:
+                term_pos = match.start()
+
+                # Check if this term is before any OR keyword
+                before_or = all(term_pos < or_pos for or_pos in or_positions)
+
+                if before_or:
+                    and_terms.append(term)
+                else:
+                    or_terms.append(term)
+
+        # Build query: AND terms with +, OR terms without
+        query_parts = []
+        for term in and_terms:
+            query_parts.append(f'+{term}')
+        query_parts.extend(or_terms)
+
+        return ' '.join(query_parts) if query_parts else ' '.join(terms)
 
     def _classify_term_priority(self, term: str, language: str) -> str:
         """
@@ -504,12 +618,13 @@ class NaturalLanguageParser:
 
     def _build_smart_query(self, terms: List[str], language: str) -> Tuple[str, List[str], List[str]]:
         """
-        Build smart query with priority-based AND/OR logic
+        Build smart query with priority-based AND/OR logic and synonym expansion
 
         Strategy:
         - High priority terms (error codes, tech terms): AND (+)
         - Medium priority terms (general keywords): OR (space)
         - Low priority terms (context words): removed
+        - Synonym expansion: English terms expanded to include Korean equivalents
 
         Args:
             terms: Search terms
@@ -520,7 +635,8 @@ class NaturalLanguageParser:
 
         Example:
             Input: ["OpenFrame", "TPETIME", "error", "발생", "원인"]
-            Output: "+TPETIME error", ["TPETIME"], ["error"]
+            After synonym expansion: ["OpenFrame", "TPETIME", "error 에러 오류", ...]
+            Output: "+TPETIME error 에러 오류", ["TPETIME"], ["error 에러 오류"]
         """
         high_priority = []
         medium_priority = []
@@ -529,9 +645,12 @@ class NaturalLanguageParser:
             priority = self._classify_term_priority(term, language)
 
             if priority == 'high':
+                # High priority terms: no synonym expansion (tech terms should be exact)
                 high_priority.append(term)
             elif priority == 'medium':
-                medium_priority.append(term)
+                # Medium priority terms: expand with synonyms for better coverage
+                expanded_term = self._expand_synonyms(term, language)
+                medium_priority.append(expanded_term)
             # 'low' priority terms are skipped
 
         # Build query: high priority with +, medium priority without
@@ -542,6 +661,7 @@ class NaturalLanguageParser:
             query_parts.append(f'+{term}')
 
         # Add medium priority terms with OR operator (no prefix)
+        # Expanded terms like "error 에러 오류" will work as OR in IMS
         query_parts.extend(medium_priority)
 
         ims_query = ' '.join(query_parts) if query_parts else ' '.join(terms)
